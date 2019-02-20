@@ -90,8 +90,7 @@ def run_query(url, name):
     if len(msg) > 0:
         telegram_send.send(messages=msg)
         print("\n".join(msg))
-
-    save(dbFile)
+        save(dbFile)
     # print("queries file saved: ", queries)
 
 
