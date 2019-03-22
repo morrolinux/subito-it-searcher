@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import json
 import os.path
 import telegram_send
+import re
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", "--add", dest='name', help="name of new tracking to be added")
@@ -63,36 +64,73 @@ def run_query(url, name):
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    products_list = soup.find(class_='items_listing')
-    product_list_items = products_list.find_all(class_='item_list_inner')
+    # find the father of the visible items
+    text = re.findall("jsx-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9] items visible", page.text)
+    products_list = soup.find(class_=text)
+
     msg = []
 
-    for product in product_list_items:
-        desc = product.find(class_='item_description')
-        title = desc.find('a').contents[0]
-        if(desc.find(class_='item_price') is not None):
-            price = desc.find(class_='item_price').contents[0]
-        else:
-            price = "Unknown price"
-        link = desc.find('a').get('href')
-        location = desc.find(class_="item_location").contents[0]
+    for products_list_index in products_list:
+        link = products_list_index.get('href')
 
-        if not queries.get(name):   # insert the new search
-            queries[name] = {url: {link: {'title': title, 'price': price, 'location': location}}}
-            print("\nNew search added:", name)
-            print("Adding result:", title, "-", price, "-", location)
-        else:   # add search results to dictionary
-            if not queries.get(name).get(url).get(link):   # found a new element
-                tmp = "New element found for "+name+": "+title+" @ "+price+" - "+location+" --> "+link
-                msg.append(tmp)
-                queries[name][url][link] = {'title': title, 'price': price, 'location': location}
+        text = "AdElements__Item--wrapper-\w*\""
+        text = text.replace("\"", "")
+        text = re.findall(text, str(products_list_index.contents))
+        product_wrapper = products_list_index.find_all(class_=text)
+
+        if len(product_wrapper) > 0:
+            for product_details in product_wrapper:
+
+                text = "AdElements__Item--title-\w*\""
+                text = text.replace("\"", "")
+                text = re.findall(text,str(product_details.contents))
+                product_title = product_details.find(class_=text)
+                text = product_title.find("h2")
+                title= str(text.contents)
+                title = title.replace("['", "")
+                title = title.replace("']", "")
+                title = title.replace("'", "")
+                title = title.replace(",", "")
+
+                text = "AdElements__ItemPrice--container-\w*\""
+                text = text.replace("\"", "")
+                text = re.findall(text,str(product_details.contents))
+                product_price = product_details.find(class_=text)
+                price = str(product_price.contents)
+                price = price.replace("['", "")
+                price = price.replace("']", "")
+                price = price.replace("'", "")
+                price = price.replace(",", "")
+                price = price.replace("  ", "")
+
+                text = "AdElements__ItemDateLocation--container-\w*\""
+                text = text.replace("\"", "")
+                text = re.findall(text, str(product_details.contents))
+                product_location = product_details.find(class_=text).find("span")
+                location = str(product_location.contents)
+                location = location.replace("['", "")
+                location = location.replace("']", "")
+                location = location.replace("'", "")
+                location = location.replace(",", "")
+
+                if not queries.get(name):   # insert the new search
+                    queries[name] = {url: {link: {'title': title, 'price': price, 'location': location}}}
+                    tmp = "New element found for " + name + ": " + title + " @ " + price + " - " + location + " --> " + link
+                    msg.append(tmp)
+                    queries[name][url][link] = {'title': title, 'price': price, 'location': location}
+                    print("\nNew search added:", name)
+                    print("Adding result:", title, "-", price, "-", location)
+                else:   # add search results to dictionary
+                    if not queries.get(name).get(url).get(link):   # found a new element
+                        tmp = "New element found for "+name+": "+title+" @ "+price+" - "+location+" --> "+link
+                        msg.append(tmp)
+                        queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
         telegram_send.send(messages=msg)
         print("\n".join(msg))
         save(dbFile)
     # print("queries file saved: ", queries)
-
 
 def save(fileName):
     with open(fileName, 'w') as file:
