@@ -63,19 +63,23 @@ def run_query(url, name):
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    products_list = soup.find(class_='items_listing')
-    product_list_items = products_list.find_all(class_='item_list_inner')
+        
+    product_list_items = soup.find('div', class_='jsx-4054856553 items visible').find_all('a')
     msg = []
 
     for product in product_list_items:
-        desc = product.find(class_='item_description')
-        title = desc.find('a').contents[0]
-        if(desc.find(class_='item_price') is not None):
-            price = desc.find(class_='item_price').contents[0]
+        title = product.find('div', class_='AdElements__Item--title-L2hvbWUv').find('h2').contents[0]
+                
+        if(product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv') is not None):
+            tmp = product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv').contents
+            price = ''.join(tmp)
+
         else:
             price = "Unknown price"
-        link = desc.find('a').get('href')
-        location = desc.find(class_="item_location").contents[0]
+        link = product.get('href')
+
+        location = product.find('div', class_='AdElements__Item--dateLocation-L2hvbWUv').find('span').contents[2]
+
 
         if not queries.get(name):   # insert the new search
             queries[name] = {url: {link: {'title': title, 'price': price, 'location': location}}}
