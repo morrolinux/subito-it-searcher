@@ -64,21 +64,21 @@ def run_query(url, name):
     soup = BeautifulSoup(page.text, 'html.parser')
 
         
-    product_list_items = soup.find('div', class_='jsx-4054856553 items visible').find_all('a')
+    product_list_items = soup.find('div', class_='jsx-3849450822 items visible').find_all('a')
     msg = []
 
     for product in product_list_items:
-        title = product.find('div', class_='AdElements__Item--title-L2hvbWUv').find('h2').contents[0]
+        title = product.find('div', class_='jsx-837743620 item-key-data').find('h2').contents[0]
                 
         if(product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv') is not None):
-            tmp = product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv').contents
+            tmp = product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv').find('h6').contents
             price = ''.join(tmp)
 
         else:
             price = "Unknown price"
         link = product.get('href')
 
-        location = product.find('div', class_='AdElements__Item--dateLocation-L2hvbWUv').find('span').contents[2]
+        location = product.find('div', class_='AdElements__ItemDateLocation--container-L2hvbWUv').find('span').contents[0]
 
 
         if not queries.get(name):   # insert the new search
