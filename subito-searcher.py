@@ -11,10 +11,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--name", "--add", dest='name', help="name of new tracking to be added")
 parser.add_argument("--url", help="url for your new tracking's search query")
 parser.add_argument("--delete", help="name of the search you want to delete")
-parser.add_argument('--refresh', dest='refresh', action='store_true', help="refresh search results")
+parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help="refresh search results")
 parser.set_defaults(refresh=False)
-parser.add_argument('--list', dest='list', action='store_true', help="print a list of current trackings")
+parser.add_argument('--list', '-l', dest='list', action='store_true', help="print a list of current trackings")
 parser.set_defaults(list=False)
+parser.add_argument('--short_list', dest='short_list', action='store_true', help="print a more compact list")
+parser.set_defaults(short_list=False)
 
 args = parser.parse_args()
 
@@ -45,6 +47,17 @@ def print_queries():
                     print(" ", result[0])
 
 
+# printing a compact list of trackings
+def print_sitrep():
+    global queries
+    i = 1
+    for search in queries.items():
+        print('\n{}) search: {}'.format(i, search[0]))
+        for query_url in search[1]:
+            print("query url:", query_url)
+        i = i+1
+
+
 def refresh():
     global queries
     for search in queries.items():
@@ -58,7 +71,7 @@ def delete(toDelete):
 
 
 def run_query(url, name):
-    print("running query ", name, url)
+    print("running query (\"{}\" - {})...".format(name, url))
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
@@ -87,14 +100,17 @@ def run_query(url, name):
             print("Adding result:", title, "-", price, "-", location)
         else:   # add search results to dictionary
             if not queries.get(name).get(url).get(link):   # found a new element
-                tmp = "New element found for "+name+": "+title+" @ "+price+" - "+location+" --> "+link
+                tmp = "New element found for "+name+": "+title+" @ "+price+" - "+location+" --> "+link+'\n'
                 msg.append(tmp)
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
         telegram_send.send(messages=msg)
         print("\n".join(msg))
+        print('\n{} new elements have been found.'.format(len(msg)))
         save(dbFile)
+    else:
+        print('\nAll lists are already up to date.')
     # print("queries file saved: ", queries)
 
 
@@ -110,6 +126,10 @@ if __name__ == '__main__':
     if args.list:
         print("printing current status...")
         print_queries()
+    
+    if args.short_list:
+        print('printing quick sitrep...')
+        print_sitrep()
 
     if args.url is not None and args.name is not None:
         run_query(args.url, args.name)
