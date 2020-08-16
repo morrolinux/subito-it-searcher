@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import json
 import os.path
 import telegram_send
+import re
+#import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", "--add", dest='name', help="name of new tracking to be added")
@@ -55,7 +57,7 @@ def print_sitrep():
         print('\n{}) search: {}'.format(i, search[0]))
         for query_url in search[1]:
             print("query url:", query_url)
-        i = i+1
+        i+=1
 
 
 def refresh():
@@ -75,23 +77,22 @@ def run_query(url, name):
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
-
+#soup.div
         
-    product_list_items = soup.find('div', class_='jsx-3849450822 items visible').find_all('a')
+    product_list_items = soup.find_all('div', class_=re.compile(r'item-key-data'))
     msg = []
 
     for product in product_list_items:
-        title = product.find('div', class_='jsx-837743620 item-key-data').find('h2').contents[0]
+        title = product.find('h2').string
                 
-        if(product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv') is not None):
-            tmp = product.find('div', class_='AdElements__ItemPrice--container-L2hvbWUv').find('h6').contents
-            price = ''.join(tmp)
+        try:
+            price=product.find('div',class_=re.compile(r'price')).string
 
-        else:
+        except:
             price = "Unknown price"
-        link = product.get('href')
+        link = product.parent.parent.parent.parent.get('href') 
 
-        location = product.find('div', class_='AdElements__ItemDateLocation--container-L2hvbWUv').find('span').contents[0]
+        location = product.find('span',re.compile(r'town')).string+product.find('span',re.compile(r'city')).string
 
 
         if not queries.get(name):   # insert the new search
@@ -105,7 +106,7 @@ def run_query(url, name):
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
-        telegram_send.send(messages=msg)
+        telegram_send.send(messages=msg,conf='telegram-send.conf')
         print("\n".join(msg))
         print('\n{} new elements have been found.'.format(len(msg)))
         save(dbFile)
