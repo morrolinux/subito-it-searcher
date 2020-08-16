@@ -7,7 +7,6 @@ import json
 import os.path
 import telegram_send
 import re
-#import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--name", "--add", dest='name', help="name of new tracking to be added")
@@ -77,7 +76,6 @@ def run_query(url, name):
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
-#soup.div
         
     product_list_items = soup.find_all('div', class_=re.compile(r'item-key-data'))
     msg = []
@@ -92,7 +90,7 @@ def run_query(url, name):
             price = "Unknown price"
         link = product.parent.parent.parent.parent.get('href') 
 
-        location = product.find('span',re.compile(r'town')).string+product.find('span',re.compile(r'city')).string
+        location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
 
 
         if not queries.get(name):   # insert the new search
@@ -106,7 +104,7 @@ def run_query(url, name):
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
-        telegram_send.send(messages=msg,conf='telegram-send.conf')
+        telegram_send.send(messages=msg)
         print("\n".join(msg))
         print('\n{} new elements have been found.'.format(len(msg)))
         save(dbFile)
