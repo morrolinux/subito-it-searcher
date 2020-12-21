@@ -26,8 +26,8 @@ parser.add_argument('--short_list', dest='short_list', action='store_true', help
 parser.set_defaults(short_list=False)
 parser.add_argument('--tgoff', dest='tgoff', action='store_true', help="turn off telegram messages")
 parser.set_defaults(tgoff=False)
-parser.add_argument('--notifyoff', dest='notifyoff', action='store_true', help="turn off windows notifications")
-parser.set_defaults(tgoff=False)
+parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', help="turn off windows notifications")
+parser.set_defaults(win_notifyoff=False)
 
 args = parser.parse_args()
 
@@ -74,18 +74,18 @@ def print_sitrep():
         i+=1
 
 
-def refresh():
+def refresh(notify):
     global queries
     for search in queries.items():
         for query_url in search[1]:
-            run_query(query_url, search[0])
+            run_query(query_url, search[0], notify)
 
 
 def delete(toDelete):
     global queries
     queries.pop(toDelete)
 
-def run_query(url, name):
+def run_query(url, name, notify):
     print("running query (\"{}\" - {})...".format(name, url))
     global queries
     page = requests.get(url)
@@ -118,14 +118,15 @@ def run_query(url, name):
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
-        # Windows only: send notification
-        if not args.notifyoff and platform.system() == "Windows":
-            global toaster
-            toaster.show_toast("New announcements", "Query: " + name)
-        if not args.tgoff:
-            telegram_send.send(messages=msg)
-        print("\n".join(msg))
-        print('\n{} new elements have been found.'.format(len(msg)))
+        if notify:
+            # Windows only: send notification
+            if not args.win_notifyoff and platform.system() == "Windows":
+                global toaster
+                toaster.show_toast("New announcements", "Query: " + name)
+            if not args.tgoff:
+                telegram_send.send(messages=msg)
+            print("\n".join(msg))
+            print('\n{} new elements have been found.'.format(len(msg)))
         save(dbFile)
     else:
         print('\nAll lists are already up to date.')
@@ -150,20 +151,23 @@ if __name__ == '__main__':
         print_sitrep()
 
     if args.url is not None and args.name is not None:
-        run_query(args.url, args.name)
+        run_query(args.url, args.name, False)
+        print("Query added.")
 
     if args.delete is not None:
         delete(args.delete)
 
     if args.refresh:
-        refresh()
+        refresh(True)
 
     print()
     save(dbFile)
     
     if args.daemon:
+        notify = False # Don't flood with notifications the first time
         while True:
-            refresh()
+            refresh(notify)
+            notify = True
             print()
             print(str(args.delay) + " seconds to next poll.")
             save(dbFile)
