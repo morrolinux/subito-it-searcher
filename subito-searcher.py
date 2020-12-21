@@ -4,7 +4,8 @@ import argparse
 import requests
 from bs4 import BeautifulSoup
 import json
-import os.path
+import os
+import platform
 import telegram_send
 import re
 import time
@@ -25,11 +26,18 @@ parser.add_argument('--short_list', dest='short_list', action='store_true', help
 parser.set_defaults(short_list=False)
 parser.add_argument('--tgoff', dest='tgoff', action='store_true', help="turn off telegram messages")
 parser.set_defaults(tgoff=False)
+parser.add_argument('--notifyoff', dest='notifyoff', action='store_true', help="turn off windows notifications")
+parser.set_defaults(tgoff=False)
 
 args = parser.parse_args()
 
 queries = dict()
 dbFile = "searches.tracked"
+
+# Windows notifications
+if platform.system() == "Windows":
+    from win10toast import ToastNotifier
+    toaster = ToastNotifier()
 
 
 # load from file
@@ -110,6 +118,10 @@ def run_query(url, name):
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
+        # Windows only: send notification
+        if not args.notifyoff and platform.system() == "Windows":
+            global toaster
+            toaster.show_toast("New announcements", "Query: " + name)
         if not args.tgoff:
             telegram_send.send(messages=msg)
         print("\n".join(msg))
