@@ -14,9 +14,9 @@ Before using this searcher, you must first install the following external module
 * `telegram_send` (this searcher supports Telegram for notifications of new records found)
 Also, this searcher is compatible with Python 3.x versions.
 
-### telegram-send configuration
+### telegram_send configuration
 After installing the telegram_send module you must configure it, following this simple steps:
-* From the CLI write "telegram-send --configure" and follow the on-screen instruction for creating the bot
+* From the CLI write `telegram-send --configure` and follow the on-screen instruction for creating the bot
 * After creating the bot, from the BotFather page digit the /token command
 * Next, you must copy the token and paste it on the CLI and press Enter
 * Finally, you have to add your own bot to the chat list and send to the bot the password appeared on the CLI
