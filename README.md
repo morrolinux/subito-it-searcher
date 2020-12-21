@@ -12,6 +12,7 @@ Before using this searcher, you must first install the following external module
 * `requests`
 * `bs4` (BeautifulSoup)
 * `telegram_send` (this searcher supports Telegram for notifications of new records found)
+
 Also, this searcher is compatible with Python 3.x versions.
 
 ### telegram_send configuration
