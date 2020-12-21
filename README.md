@@ -6,6 +6,7 @@ BeautifulSoup toy example running queries and scraping results on a popular ital
 This fork adds:
 * Infinite refresh with adjustable delay
 * Windows notifications
+* Fix flooding on Telegram
 
 ## Configuration
 Before using this searcher, you must first install the following external modules through CLI (Windows: pip install [modulename]; Mac/Linux: sudo pip install [modulename]):
