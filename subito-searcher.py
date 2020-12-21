@@ -7,17 +7,24 @@ import json
 import os.path
 import telegram_send
 import re
+import time
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--name", "--add", dest='name', help="name of new tracking to be added")
+parser.add_argument("--add", dest='name', help="name of new tracking to be added")
 parser.add_argument("--url", help="url for your new tracking's search query")
 parser.add_argument("--delete", help="name of the search you want to delete")
-parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help="refresh search results")
+parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help="refresh search results once")
 parser.set_defaults(refresh=False)
-parser.add_argument('--list', '-l', dest='list', action='store_true', help="print a list of current trackings")
+parser.add_argument('--daemon', '-d', dest='daemon', action='store_true', help="keep refreshing search results forever (default delay 120 seconds)")
+parser.set_defaults(daemon=False)
+parser.add_argument('--delay', dest='delay', help="delay for the daemon option (in seconds)")
+parser.set_defaults(delay=120)
+parser.add_argument('--list', dest='list', action='store_true', help="print a list of current trackings")
 parser.set_defaults(list=False)
 parser.add_argument('--short_list', dest='short_list', action='store_true', help="print a more compact list")
 parser.set_defaults(short_list=False)
+parser.add_argument('--tgoff', dest='tgoff', action='store_true', help="turn off telegram messages")
+parser.set_defaults(tgoff=False)
 
 args = parser.parse_args()
 
@@ -70,7 +77,6 @@ def delete(toDelete):
     global queries
     queries.pop(toDelete)
 
-
 def run_query(url, name):
     print("running query (\"{}\" - {})...".format(name, url))
     global queries
@@ -104,7 +110,8 @@ def run_query(url, name):
                 queries[name][url][link] = {'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
-        telegram_send.send(messages=msg)
+        if not args.tgoff:
+            telegram_send.send(messages=msg)
         print("\n".join(msg))
         print('\n{} new elements have been found.'.format(len(msg)))
         save(dbFile)
@@ -133,11 +140,19 @@ if __name__ == '__main__':
     if args.url is not None and args.name is not None:
         run_query(args.url, args.name)
 
-    if args.refresh:
-        refresh()
-
     if args.delete is not None:
         delete(args.delete)
 
+    if args.refresh:
+        refresh()
+
     print()
     save(dbFile)
+    
+    if args.daemon:
+        while True:
+            refresh()
+            print()
+            print(str(args.delay) + " seconds to next poll.")
+            save(dbFile)
+            time.sleep(int(args.delay))
