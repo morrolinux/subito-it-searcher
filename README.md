@@ -12,7 +12,7 @@ This fork adds:
 Before using this searcher, you must first install the following external modules through CLI (Windows: pip install [modulename]; Mac/Linux: sudo pip install [modulename]):
 * `requests`
 * `bs4` (BeautifulSoup)
-* `telegram_send` (this searcher supports Telegram for notifications of new records found)
+* `requests` (for Telegram)
 
 Also, this searcher is compatible with Python 3.x versions.
 

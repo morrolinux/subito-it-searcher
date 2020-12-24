@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 import platform
-import telegram_send
+import requests
 import re
 import time
 
@@ -28,11 +28,15 @@ parser.add_argument('--tgoff', dest='tgoff', action='store_true', help="turn off
 parser.set_defaults(tgoff=False)
 parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', help="turn off windows notifications")
 parser.set_defaults(win_notifyoff=False)
+parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
+parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
 
 args = parser.parse_args()
 
 queries = dict()
+apiCredentials = dict()
 dbFile = "searches.tracked"
+telegramApiFile = "telegram_api_credentials"
 
 # Windows notifications
 if platform.system() == "Windows":
@@ -41,13 +45,23 @@ if platform.system() == "Windows":
 
 
 # load from file
-def load_from_file(fileName):
+def load_queries():
     global queries
-    if not os.path.isfile(fileName):
+    global dbFile
+    if not os.path.isfile(dbFile):
         return
 
-    with open(fileName) as file:
+    with open(dbFile) as file:
         queries = json.load(file)
+
+def load_api_credentials():
+    global apiCredentials
+    global telegramApiFile
+    if not os.path.isfile(telegramApiFile):
+        return
+
+    with open(telegramApiFile) as file:
+        apiCredentials = json.load(file)
 
 
 def print_queries():
@@ -123,24 +137,38 @@ def run_query(url, name, notify):
             if not args.win_notifyoff and platform.system() == "Windows":
                 global toaster
                 toaster.show_toast("New announcements", "Query: " + name)
-            if not args.tgoff:
-                telegram_send.send(messages=msg)
+            if is_telegram_active():
+                send_telegram_messages(msg)
             print("\n".join(msg))
             print('\n{} new elements have been found.'.format(len(msg)))
-        save(dbFile)
+        save_queries()
     else:
         print('\nAll lists are already up to date.')
     # print("queries file saved: ", queries)
 
 
-def save(fileName):
-    with open(fileName, 'w') as file:
+def save_queries():
+    with open(dbFile, 'w') as file:
         file.write(json.dumps(queries))
 
+def save_api_credentials():
+    with open(telegramApiFile, 'w') as file:
+        file.write(json.dumps(apiCredentials))
+
+def is_telegram_active():
+    return not args.tgoff and apiCredentials["chatid"] is not None and apiCredentials["token"] is not None
+
+def send_telegram_messages(messages):
+    for msg in messages:
+        request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&text=" + msg
+        requests.get(request_url)
 
 if __name__ == '__main__':
 
-    load_from_file(dbFile)
+    ### Setup commands ###
+
+    load_queries()
+    load_api_credentials()
     
     if args.list:
         print("printing current status...")
@@ -157,11 +185,20 @@ if __name__ == '__main__':
     if args.delete is not None:
         delete(args.delete)
 
+    # Telegram setup
+
+    if args.token is not None and args.chatid is not None:
+        apiCredentials["token"] = args.token
+        apiCredentials["chatid"] = args.chatid
+        save_api_credentials()
+
+    ### Run commands ###
+
     if args.refresh:
         refresh(True)
 
     print()
-    save(dbFile)
+    save_queries()
     
     if args.daemon:
         notify = False # Don't flood with notifications the first time
@@ -170,5 +207,5 @@ if __name__ == '__main__':
             notify = True
             print()
             print(str(args.delay) + " seconds to next poll.")
-            save(dbFile)
+            save_queries()
             time.sleep(int(args.delay))
