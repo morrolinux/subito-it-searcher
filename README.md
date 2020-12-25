@@ -11,6 +11,7 @@ This fork adds:
 * Multiplatform support: can run also on Windows
 * Windows 10 notifications
 * Easier Telegram setup
+* Handle connection errors
 * Fix flooding on Telegram
 
 ## Configuration

@@ -87,12 +87,18 @@ def print_sitrep():
             print("query url:", query_url)
         i+=1
 
-
 def refresh(notify):
     global queries
-    for search in queries.items():
-        for query_url in search[1]:
-            run_query(query_url, search[0], notify)
+    try:
+        for search in queries.items():
+            for query_url in search[1]:
+                run_query(query_url, search[0], notify)
+    except requests.exceptions.ConnectionError:
+        print("***Connection error***")
+    except requests.exceptions.Timeout:
+        print("***Server timeout error***")
+    except requests.exceptions.HTTPError:
+        print("***HTTP error***")
 
 
 def delete(toDelete):
@@ -156,7 +162,7 @@ def save_api_credentials():
         file.write(json.dumps(apiCredentials))
 
 def is_telegram_active():
-    return not args.tgoff and apiCredentials["chatid"] is not None and apiCredentials["token"] is not None
+    return not args.tgoff and "chatid" in apiCredentials and "token" in apiCredentials
 
 def send_telegram_messages(messages):
     for msg in messages:
