@@ -32,24 +32,24 @@ Write `python3 subito-searcher.py --help` to see all the command line arguments.
 
 Here is a cheatsheet of the most common usages:
 
-Add a new query with name "Auto":
+* Add a new query with name "Auto":
 `python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto`
 (keep in mind that you *always* use `--add` and `--url` together)
 
-Remove the query "Auto":
+* Remove the query "Auto":
 `python3 subito-searcher.py --delete Auto`
 
-See a list of all your added queries:
+* See a list of all your added queries:
 `python3 subito-searcher.py --short_list`
 
-Start the bot, it will search for new announcments every 2 minutes:
+* **Start the bot**, it will search for new announcements every 2 minutes:
 `python3 subito-searcher.py --daemon`
 
-Start the bot with a custom delay (example, 30 seconds):
+* Start the bot with a custom delay (example, 30 seconds):
 `python3 subito-searcher.py --daemon --delay 30`
 
-Start the bot, but disable windows notifications:
+* Start the bot, but disable windows notifications:
 `python3 subito-searcher.py --notifyoff`
 
-Start the bot, but disable telegram messages:
+* Start the bot, but disable telegram messages:
 `python3 subito-searcher.py --tgoff`
