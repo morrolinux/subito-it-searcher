@@ -3,10 +3,7 @@
 BeautifulSoup scraper running queries on a popular italian ad website.
 This searcher is compatible with Python 3.x versions.
 
-The original version is from [MorroLinux](https://www.youtube.com/watch?v=qyZ-E-6TPD8)
-
-## The fork
-This fork adds:
+Features (thanks to Marco Perronet)
 * Infinite refresh with adjustable delay
 * Multiplatform support: can run also on Windows
 * Windows 10 notifications
