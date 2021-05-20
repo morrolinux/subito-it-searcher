@@ -118,7 +118,8 @@ def run_query(url, name, notify):
         title = product.find('h2').string
                 
         try:
-            price=product.find('p',class_=re.compile(r'price')).string #at the moment (18.3.2021) the price is under the 'p' tag
+            price=product.find('p',class_=re.compile(r'price')).contents[0] 
+            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
 
         except:
             price = "Unknown price"
