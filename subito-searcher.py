@@ -2,7 +2,7 @@
 
 import argparse
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import json
 import os
 import platform
@@ -118,7 +118,11 @@ def run_query(url, name, notify):
         title = product.find('h2').string
                 
         try:
-            price=product.find('p',class_=re.compile(r'price')).contents[0] 
+            price=product.find('p',class_=re.compile(r'price')).contents[0]
+            # check if the span tag exists
+            price_soup = BeautifulSoup(price, 'html.parser')
+            if type(price_soup) == Tag:
+                continue
             #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
 
         except:
