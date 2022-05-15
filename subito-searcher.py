@@ -128,9 +128,11 @@ def run_query(url, name, notify):
         except:
             price = "Unknown price"
         link = product.parent.parent.parent.parent.get('href') 
-
-        location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
-
+        try:
+            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
+        except:
+            print("Unknown location for item %s" % (title))
+            location = "Unknown location"
 
         if not queries.get(name):   # insert the new search
             queries[name] = {url: {link: {'title': title, 'price': price, 'location': location}}}
