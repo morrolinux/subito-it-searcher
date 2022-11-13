@@ -33,8 +33,8 @@ Write `python3 subito-searcher.py --help` to see all the command line arguments.
 Here is a cheatsheet of the most common usages:
 
 * Add a new query with name "Auto":
-`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto`
-(keep in mind that you *always* use `--add` and `--url` together)
+`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto [--minPrice 50] [--maxPrice 100]`
+(keep in mind that you *always* use `--add` and `--url` together, min and max prices are optional)
 
 * Remove the query "Auto":
 `python3 subito-searcher.py --delete Auto`
