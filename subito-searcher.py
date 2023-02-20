@@ -123,6 +123,12 @@ def delete(toDelete):
 
 def run_query(url, name, notify, minPrice, maxPrice):
     print("running query (\"{}\" - {})...".format(name, url))
+
+    if minPrice != 'null':
+        minPrice = int(minPrice)
+    if maxPrice != 'null':
+        maxPrice = int(maxPrice)
+
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
@@ -140,6 +146,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
             if type(price_soup) == Tag:
                 continue
             #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
+            price = int(price.replace('.','')[:-2])
 
         except:
             price = "Unknown price"
@@ -149,15 +156,15 @@ def run_query(url, name, notify, minPrice, maxPrice):
         except:
             print("Unknown location for item %s" % (title))
             location = "Unknown location"
-        if minPrice == "null" or price == "Unknown price" or price[:-2]>=minPrice:
-            if maxPrice == "null" or price == "Unknown price" or price[:-2]<=maxPrice:
+        if minPrice == "null" or price == "Unknown price" or price>=minPrice:
+            if maxPrice == "null" or price == "Unknown price" or price<=maxPrice:
                 if not queries.get(name):   # insert the new search
                     queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
                     print("\nNew search added:", name)
                     print("Adding result:", title, "-", price, "-", location)
                 else:   # add search results to dictionary
                     if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                        tmp = "New element found for "+name+": "+title+" @ "+price+" - "+location+" --> "+link+'\n'
+                        tmp = "New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
                         msg.append(tmp)
                         queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
 
