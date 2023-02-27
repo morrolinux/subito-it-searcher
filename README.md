@@ -11,10 +11,10 @@ Features (thanks to Marco Perronet)
 * Handle connection errors
 * Fix flooding on Telegram
 
-## Configuration
-Before using this searcher, you must first install the following external modules through CLI (Windows/Linux/Mac: `pip3 install [modulename]`):
-* `requests` (HTTP requests)
-* `bs4` (BeautifulSoup)
+## Setup
+
+### Install dependencies 
+```pip3 install -r requirements.txt```
 
 ### Telegram configuration
 To have to bot send you updates on Telegram, follow these steps:
