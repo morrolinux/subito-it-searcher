@@ -124,11 +124,6 @@ def delete(toDelete):
 def run_query(url, name, notify, minPrice, maxPrice):
     print("running query (\"{}\" - {})...".format(name, url))
 
-    if minPrice != 'null':
-        minPrice = int(minPrice)
-    if maxPrice != 'null':
-        maxPrice = int(maxPrice)
-
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
@@ -156,8 +151,8 @@ def run_query(url, name, notify, minPrice, maxPrice):
         except:
             print("Unknown location for item %s" % (title))
             location = "Unknown location"
-        if minPrice == "null" or price == "Unknown price" or price>=minPrice:
-            if maxPrice == "null" or price == "Unknown price" or price<=maxPrice:
+        if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
+            if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
                 if not queries.get(name):   # insert the new search
                     queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
                     print("\nNew search added:", name)
