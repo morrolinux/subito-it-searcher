@@ -32,6 +32,8 @@ parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', he
 parser.set_defaults(win_notifyoff=False)
 parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
 parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
+parser.add_argument('-i', '--include', dest='include', action='append', default=[], help="regex search in title for including item")
+parser.add_argument('-e', '--exclude', dest='exclude', action='append', default=[], help="regex search in title for excluding item")
 
 args = parser.parse_args()
 
@@ -72,13 +74,13 @@ def print_queries():
     for search in queries.items():
         print("\nsearch: ", search[0])
         for query_url in search[1]:
-            print("query url:", query_url)
-            for url in search[1].items():
-                for minP in url[1].items():
-                    for maxP in minP[1].items():
-                        for result in maxP[1].items():
-                            print("\n", result[1].get('title'), ":", result[1].get('price'), "-->", result[1].get('location'))
-                            print(" ", result[0])
+            url = list(search[1].items())[0]
+            print("\nquery url:", url[0])
+            for minP in url[1].items():
+                for maxP in minP[1].items():
+                    for result in maxP[1].items():
+                        print("\n", result[1].get('title'), ":", result[1].get('price'), "-->", result[1].get('location'))
+                        print(" ", result[0])
 
 
 # printing a compact list of trackings
@@ -87,17 +89,17 @@ def print_sitrep():
     i = 1
     for search in queries.items():
         print('\n{}) search: {}'.format(i, search[0]))
-        for query_url in search[1].items():
-            for minP in query_url[1].items():
-                for maxP in minP[1].items():
-                    print("query url:", query_url[0], " ", end='')
-                    if minP[0] !="null":
-                        print(minP[0],"<", end='')
-                    if minP[0] !="null" or maxP[0] !="null":
-                        print(" price ", end='')
-                    if maxP[0] !="null":
-                        print("<", maxP[0], end='')
-                    print("\n")
+        url = list(search[1].items())[0]
+        for minP in url[1].items():
+            for maxP in minP[1].items():
+                print("query url:", url[0], " ", end='')
+                if minP[0] !="null":
+                    print(minP[0],"<", end='')
+                if minP[0] !="null" or maxP[0] !="null":
+                    print(" price ", end='')
+                if maxP[0] !="null":
+                    print("<", maxP[0], end='')
+                print("\n")
 
         i+=1
 
@@ -105,10 +107,10 @@ def refresh(notify):
     global queries
     try:
         for search in queries.items():
-            for url in search[1].items():
-                for minP in url[1].items():
-                    for maxP in minP[1].items():
-                        run_query(url[0], search[0], notify, minP[0], maxP[0])
+            url = list(search[1].items())[0]
+            for minP in url[1].items():
+                for maxP in minP[1].items():
+                    run_query(url[0], search[0], notify, minP[0], maxP[0], search[1]['include'], search[1]['exclude'])
     except requests.exceptions.ConnectionError:
         print("***Connection error***")
     except requests.exceptions.Timeout:
@@ -121,7 +123,7 @@ def delete(toDelete):
     global queries
     queries.pop(toDelete)
 
-def run_query(url, name, notify, minPrice, maxPrice):
+def run_query(url, name, notify, minPrice, maxPrice, include, exclude):
     print("running query (\"{}\" - {})...".format(name, url))
 
     if minPrice != 'null':
@@ -138,7 +140,15 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
     for product in product_list_items:
         title = product.find('h2').string
-                
+        
+        # include
+        if not any(re.search(regex_pattern, title, re.IGNORECASE) is not None for regex_pattern in include):
+            continue
+        
+        # exclude
+        if any(re.search(regex_pattern, title, re.IGNORECASE) is not None for regex_pattern in exclude):
+            continue
+        
         try:
             price=product.find('p',class_=re.compile(r'price')).contents[0]
             # check if the span tag exists
@@ -159,7 +169,10 @@ def run_query(url, name, notify, minPrice, maxPrice):
         if minPrice == "null" or price == "Unknown price" or price>=minPrice:
             if maxPrice == "null" or price == "Unknown price" or price<=maxPrice:
                 if not queries.get(name):   # insert the new search
-                    queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
+                    queries[name] = { 
+                        url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}},
+                        'include': include, 'exclude': exclude
+                    }
                     print("\nNew search added:", name)
                     print("Adding result:", title, "-", price, "-", location)
                 else:   # add search results to dictionary
@@ -216,7 +229,7 @@ if __name__ == '__main__':
         print_sitrep()
 
     if args.url is not None and args.name is not None:
-        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
+        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null", args.include, args.exclude)
         print("Query added.")
 
     if args.delete is not None:
