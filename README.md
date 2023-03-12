@@ -16,6 +16,8 @@ Features (thanks to Marco Perronet)
 ### Install dependencies 
 ```pip3 install -r requirements.txt```
 
+NB: For Windows 10 users, install also ```win10toast```.
+
 ### Telegram configuration
 To have to bot send you updates on Telegram, follow these steps:
 1) Create a bot by writing to the BotFather on Telegram
