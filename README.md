@@ -16,6 +16,8 @@ Before using this searcher, you must first install the following external module
 * `requests` (HTTP requests)
 * `bs4` (BeautifulSoup)
 
+or just use the `requirements.txt` through CLI: `pip install -r requirements.txt`
+
 ### Telegram configuration
 To have to bot send you updates on Telegram, follow these steps:
 1) Create a bot by writing to the BotFather on Telegram
@@ -33,7 +35,7 @@ Write `python3 subito-searcher.py --help` to see all the command line arguments.
 Here is a cheatsheet of the most common usages:
 
 * Add a new query with name "Auto":
-`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto [--minPrice 50] [--maxPrice 100]`
+`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto [--minPrice 50] [--maxPrice 100] [--include "REGEX_PATTERNS"] [--exclude "REGEX_PATTERNS"]`
 (keep in mind that you *always* use `--add` and `--url` together, min and max prices are optional)
 
 * Remove the query "Auto":
