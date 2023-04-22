@@ -27,7 +27,7 @@ To have to bot send you updates on Telegram, follow these steps:
 
 To configure Telegram, simply invoke the script with the proper parameters as following:
 
-`pyhton3 subito-searcher.py --addtoken [YOUR_API_TOKEN] --addchatid [YOUR_CHANNEL_NAME]`
+`python3 subito-searcher.py --addtoken [YOUR_API_TOKEN] --addchatid [YOUR_CHANNEL_NAME]`
 
 ## Usage
 Write `python3 subito-searcher.py --help` to see all the command line arguments. Keep in mind that the script *always* needs some argument in order to start. 
@@ -35,7 +35,7 @@ Write `python3 subito-searcher.py --help` to see all the command line arguments.
 Here is a cheatsheet of the most common usages:
 
 * Add a new query with name "Auto":
-`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto [--minPrice 50] [--maxPrice 100]`
+`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto --minPrice 50 --maxPrice 100`
 (keep in mind that you *always* use `--add` and `--url` together, min and max prices are optional)
 
 * Remove the query "Auto":
@@ -55,3 +55,27 @@ Here is a cheatsheet of the most common usages:
 
 * Start the bot, but disable telegram messages:
 `python3 subito-searcher.py --tgoff`
+
+## Example setup
+
+Here is the list of commands I types to set up the bot on my computer:
+```
+python3 subito-searcher.py --addtoken "6168613223:oij9JDXXlipj92jDj0j90JFWO292" --addchatid "@subito_it_test"
+python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto
+python3 subito-searcher.py --add Iphone --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=iphone
+python3 subito-searcher.py --add ScarpeMaxMin --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto --minPrice 10 --maxPrice 150
+python3 subito-searcher.py --daemon --delay 10
+```
+(Of course the token I showed here is not the real one)
+
+"Auto", "Iphone", and "Scarpe" are very common queries, so hopefully you should see some notifications on Telegram!
+
+If you want to check if your bot is able to receive messages, you can use this link to send a test message: https://api.telegram.org/bot[bot_token_code]/sendMessage?chat_id=[chat_id_code]&text=prova (please use your token and chat id in the link).
+
+For example, I used: https://api.telegram.org/6168613223:oij9JDXXlipj92jDj0j90JFWO292/sendMessage?chat_id=@subito_it_test&text=Ciao
+
+### Troubleshooting
+
+* Did you add the bot to the channel and set it as admin?
+* Did you use the correct chat id? Don't forget the "@" at the beginning (e.g. `@subito_it_test`)
+* Be patient! Maybe it will take a few minutes to receive notifications. Did you use a common query where people post announcments like "Auto"? For testing, try also setting a low delay (e.g. `python3 subito-searcher.py --daemon --delay 10`)
