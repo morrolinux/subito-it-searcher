@@ -3,12 +3,13 @@
 import argparse
 import requests
 from bs4 import BeautifulSoup, Tag
-import json
+import json 
 import os
 import platform
 import requests
 import re
-import time
+import time as t
+from datetime import datetime, time
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--add", dest='name', help="name of new tracking to be added")
@@ -20,6 +21,8 @@ parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help
 parser.set_defaults(refresh=False)
 parser.add_argument('--daemon', '-d', dest='daemon', action='store_true', help="keep refreshing search results forever (default delay 120 seconds)")
 parser.set_defaults(daemon=False)
+parser.add_argument('--activeHour', '-ah', dest='activeHour', help="Time slot. Hour when to be active in 24h notation")
+parser.add_argument('--pauseHour', '-ph', dest='pauseHour', help="Time slot. Hour when to pause in 24h notation")
 parser.add_argument('--delay', dest='delay', help="delay for the daemon option (in seconds)")
 parser.set_defaults(delay=120)
 parser.add_argument('--list', dest='list', action='store_true', help="print a list of current trackings")
@@ -69,6 +72,7 @@ def load_api_credentials():
 def print_queries():
     global queries
     #print(queries, "\n\n")
+	
     for search in queries.items():
         print("\nsearch: ", search[0])
         for query_url in search[1]:
@@ -110,11 +114,11 @@ def refresh(notify):
                     for maxP in minP[1].items():
                         run_query(url[0], search[0], notify, minP[0], maxP[0])
     except requests.exceptions.ConnectionError:
-        print("***Connection error***")
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Connection error***")
     except requests.exceptions.Timeout:
-        print("***Server timeout error***")
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Server timeout error***")
     except requests.exceptions.HTTPError:
-        print("***HTTP error***")
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***HTTP error***")
 
 
 def delete(toDelete):
@@ -122,7 +126,7 @@ def delete(toDelete):
     queries.pop(toDelete)
 
 def run_query(url, name, notify, minPrice, maxPrice):
-    print("running query (\"{}\" - {})...".format(name, url))
+    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
     global queries
     page = requests.get(url)
@@ -133,7 +137,6 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
     for product in product_list_items:
         title = product.find('h2').string
-                
         try:
             price=product.find('p',class_=re.compile(r'price')).contents[0]
             # check if the span tag exists
@@ -142,24 +145,23 @@ def run_query(url, name, notify, minPrice, maxPrice):
                 continue
             #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
             price = int(price.replace('.','')[:-2])
-
         except:
             price = "Unknown price"
         link = product.parent.parent.parent.parent.get('href') 
         try:
             location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
         except:
-            print("Unknown location for item %s" % (title))
+            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
             location = "Unknown location"
         if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
             if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
                 if not queries.get(name):   # insert the new search
                     queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
-                    print("\nNew search added:", name)
-                    print("Adding result:", title, "-", price, "-", location)
+                    print("\n" + datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New search added:", name)
+                    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
                 else:   # add search results to dictionary
                     if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                        tmp = "New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
+                        tmp = datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
                         msg.append(tmp)
                         queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
 
@@ -195,6 +197,14 @@ def send_telegram_messages(messages):
         request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&text=" + msg
         requests.get(request_url)
 
+def in_between(now, start, end):
+    if start < end:
+        return start <= now < end
+    elif start == end:
+	    return True
+    else: # over midnight e.g., 23:30-04:15
+        return start <= now or now < end
+		
 if __name__ == '__main__':
 
     ### Setup commands ###
@@ -203,19 +213,25 @@ if __name__ == '__main__':
     load_api_credentials()
     
     if args.list:
-        print("printing current status...")
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing current status...")
         print_queries()
     
     if args.short_list:
-        print('printing quick sitrep...')
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing quick sitrep...")
         print_sitrep()
 
     if args.url is not None and args.name is not None:
         run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
-        print("Query added.")
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Query added.")
 
     if args.delete is not None:
         delete(args.delete)
+
+    if args.activeHour is None:
+        args.activeHour="0"
+
+    if args.pauseHour is None:
+        args.pauseHour="0"
 
     # Telegram setup
 
@@ -231,13 +247,16 @@ if __name__ == '__main__':
 
     print()
     save_queries()
-    
+
+
     if args.daemon:
         notify = False # Don't flood with notifications the first time
         while True:
-            refresh(notify)
-            notify = True
-            print()
-            print(str(args.delay) + " seconds to next poll.")
-            save_queries()
-            time.sleep(int(args.delay))
+            if in_between(datetime.now().time(), time(int(args.activeHour)), time(int(args.pauseHour))):
+                refresh(notify)
+                notify = True
+                print()
+                print(str(args.delay) + " seconds to next poll.")
+                save_queries()
+            t.sleep(int(args.delay))
+
