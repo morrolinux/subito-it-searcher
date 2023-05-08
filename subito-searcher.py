@@ -119,6 +119,8 @@ def refresh(notify):
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Server timeout error***")
     except requests.exceptions.HTTPError:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***HTTP error***")
+    except Exception as e:
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " " + e)  
 
 
 def delete(toDelete):
