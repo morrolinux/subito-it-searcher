@@ -27,44 +27,44 @@ To have to bot send you updates on Telegram, follow these steps:
 
 To configure Telegram, simply invoke the script with the proper parameters as following:
 
-`python3 subito-searcher.py --addtoken [YOUR_API_TOKEN] --addchatid [YOUR_CHANNEL_NAME]`
+`python3 subitosearcher.py --addtoken [YOUR_API_TOKEN] --addchatid [YOUR_CHANNEL_NAME]`
 
 ## Usage
-Write `python3 subito-searcher.py --help` to see all the command line arguments. Keep in mind that the script *always* needs some argument in order to start. 
+Write `python3 subitosearcher.py --help` to see all the command line arguments. Keep in mind that the script *always* needs some argument in order to start. 
 
 Here is a cheatsheet of the most common usages:
 
 * Add a new query with name "Auto":
-`python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto --minPrice 50 --maxPrice 100`
+`python3 subitosearcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/?q=auto --minPrice 50 --maxPrice 100`
 (keep in mind that you *always* use `--add` and `--url` together, min and max prices are optional)
 
 * Remove the query "Auto":
-`python3 subito-searcher.py --delete Auto`
+`python3 subitosearcher.py --delete Auto`
 
 * See a list of all your added queries:
-`python3 subito-searcher.py --short_list`
+`python3 subitosearcher.py --short_list`
 
 * **Start the bot**, it will search for new announcements every 2 minutes:
-`python3 subito-searcher.py --daemon`
+`python3 subitosearcher.py --daemon`
 
 * Start the bot with a custom delay (example, 30 seconds):
-`python3 subito-searcher.py --daemon --delay 30`
+`python3 subitosearcher.py --daemon --delay 30`
 
 * Start the bot, but disable windows notifications:
-`python3 subito-searcher.py --notifyoff`
+`python3 subitosearcher.py --notifyoff`
 
 * Start the bot, but disable telegram messages:
-`python3 subito-searcher.py --tgoff`
+`python3 subitosearcher.py --tgoff`
 
 ## Example setup
 
 Here is the list of commands I types to set up the bot on my computer:
 ```
-python3 subito-searcher.py --addtoken "6168613223:oij9JDXXlipj92jDj0j90JFWO292" --addchatid "@subito_it_test"
-python3 subito-searcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto
-python3 subito-searcher.py --add Iphone --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=iphone
-python3 subito-searcher.py --add ScarpeMaxMin --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto --minPrice 10 --maxPrice 150
-python3 subito-searcher.py --daemon --delay 10
+python3 subitosearcher.py --addtoken "6168613223:oij9JDXXlipj92jDj0j90JFWO292" --addchatid "@subito_it_test"
+python3 subitosearcher.py --add Auto --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto
+python3 subitosearcher.py --add Iphone --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=iphone
+python3 subitosearcher.py --add ScarpeMaxMin --url https://www.subito.it/annunci-italia/vendita/usato/\?q\=auto --minPrice 10 --maxPrice 150
+python3 subitosearcher.py --daemon --delay 10
 ```
 (Of course the token I showed here is not the real one)
 
@@ -78,4 +78,4 @@ For example, I used: https://api.telegram.org/6168613223:oij9JDXXlipj92jDj0j90JF
 
 * Did you add the bot to the channel and set it as admin?
 * Did you use the correct chat id? Don't forget the "@" at the beginning (e.g. `@subito_it_test`)
-* Be patient! Maybe it will take a few minutes to receive notifications. Did you use a common query where people post announcments like "Auto"? For testing, try also setting a low delay (e.g. `python3 subito-searcher.py --daemon --delay 10`)
+* Be patient! Maybe it will take a few minutes to receive notifications. Did you use a common query where people post announcments like "Auto"? For testing, try also setting a low delay (e.g. `python3 subitosearcher.py --daemon --delay 10`)
