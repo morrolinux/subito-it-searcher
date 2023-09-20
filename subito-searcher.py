@@ -178,7 +178,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
         
-    product_list_items = soup.find_all('div', class_=re.compile(r'item-key-data'))
+    product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
 
     for product in product_list_items:
@@ -193,7 +193,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
             price = int(price.replace('.','')[:-2])
         except:
             price = "Unknown price"
-        link = product.parent.parent.parent.parent.get('href') 
+        link = product.find('a').get('href')
         try:
             location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
         except:
