@@ -51,6 +51,7 @@ if platform.system() == "Windows":
 
 # load from file
 def load_queries():
+    '''A function to load the queries from the json file'''
     global queries
     global dbFile
     if not os.path.isfile(dbFile):
@@ -60,6 +61,7 @@ def load_queries():
         queries = json.load(file)
 
 def load_api_credentials():
+    '''A function to load the telegram api credentials from the json file'''
     global apiCredentials
     global telegramApiFile
     if not os.path.isfile(telegramApiFile):
@@ -70,6 +72,7 @@ def load_api_credentials():
 
 
 def print_queries():
+    '''A function to print the queries'''
     global queries
     #print(queries, "\n\n")
 	
@@ -87,6 +90,7 @@ def print_queries():
 
 # printing a compact list of trackings
 def print_sitrep():
+    '''A function to print a compact list of trackings'''
     global queries
     i = 1
     for search in queries.items():
@@ -106,6 +110,18 @@ def print_sitrep():
         i+=1
 
 def refresh(notify):
+    '''A function to refresh the queries
+    
+    Arguments
+    ---------
+    notify: bool
+        whether to send notifications or not
+
+    Example usage
+    -------------
+    >>> refresh(True)   # Refresh queries and send notifications
+    >>> refresh(False)  # Refresh queries and don't send notifications
+    '''
     global queries
     try:
         for search in queries.items():
@@ -124,17 +140,47 @@ def refresh(notify):
 
 
 def delete(toDelete):
+    '''A function to delete a query
+
+    Arguments
+    ---------
+    toDelete: str
+        the query to delete
+
+    Example usage
+    -------------
+    >>> delete("query")
+    '''
     global queries
     queries.pop(toDelete)
 
 def run_query(url, name, notify, minPrice, maxPrice):
+    '''A function to run a query
+
+    Arguments
+    ---------
+    url: str
+        the url to run the query on
+    name: str
+        the name of the query
+    notify: bool
+        whether to send notifications or not
+    minPrice: str
+        the minimum price to search for
+    maxPrice: str
+        the maximum price to search for
+
+    Example usage
+    -------------
+    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null")
+    '''
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
         
-    product_list_items = soup.find_all('div', class_=re.compile(r'item-key-data'))
+    product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
 
     for product in product_list_items:
@@ -149,7 +195,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
             price = int(price.replace('.','')[:-2])
         except:
             price = "Unknown price"
-        link = product.parent.parent.parent.parent.get('href') 
+        link = product.find('a').get('href')
         try:
             location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
         except:
@@ -184,22 +230,58 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
 
 def save_queries():
+    '''A function to save the queries
+    '''
     with open(dbFile, 'w') as file:
         file.write(json.dumps(queries))
 
 def save_api_credentials():
+    '''A function to save the telegram api credentials into the telegramApiFile'''
     with open(telegramApiFile, 'w') as file:
         file.write(json.dumps(apiCredentials))
 
 def is_telegram_active():
+    '''A function to check if telegram is active, i.e. if the api credentials are present
+
+    Returns
+    -------
+    bool
+        True if telegram is active, False otherwise
+    '''
     return not args.tgoff and "chatid" in apiCredentials and "token" in apiCredentials
 
 def send_telegram_messages(messages):
+    '''A function to send messages to telegram
+
+    Arguments
+    ---------
+    messages: list
+        the list of messages to send
+
+    Example usage
+    -------------
+    >>> send_telegram_messages(["message1", "message2"])
+    '''
     for msg in messages:
         request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&text=" + msg
         requests.get(request_url)
 
 def in_between(now, start, end):
+    '''A function to check if a time is in between two other times
+
+    Arguments
+    ---------
+    now: datetime
+        the time to check
+    start: datetime
+        the start time
+    end: datetime
+        the end time
+
+    Example usage
+    -------------
+    >>> in_between(datetime.now(), datetime(2021, 5, 20, 0, 0, 0), datetime(2021, 5, 20, 23, 59, 59))
+    '''
     if start < end:
         return start <= now < end
     elif start == end:
