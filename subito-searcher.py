@@ -3,7 +3,7 @@
 import argparse
 import requests
 from bs4 import BeautifulSoup, Tag
-import json 
+import json
 import os
 import platform
 import requests
@@ -75,7 +75,7 @@ def print_queries():
     '''A function to print the queries'''
     global queries
     #print(queries, "\n\n")
-	
+
     for search in queries.items():
         print("\nsearch: ", search[0])
         for query_url in search[1]:
@@ -111,7 +111,7 @@ def print_sitrep():
 
 def refresh(notify):
     '''A function to refresh the queries
-    
+
     Arguments
     ---------
     notify: bool
@@ -174,10 +174,12 @@ def run_query(url, name, notify, minPrice, maxPrice):
     '''
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
+    searches_deleted = False
+
     global queries
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
-        
+
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
 
@@ -194,6 +196,17 @@ def run_query(url, name, notify, minPrice, maxPrice):
         except:
             price = "Unknown price"
         link = product.find('a').get('href')
+
+        solded = product.find('span',re.compile(r'item-sold-badge'))
+
+        # check if the product has already been solded
+        if solded != None:
+            # if the search has previously been saved remove it from the file
+            if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
+                del queries[name][url][minPrice][maxPrice][link]
+                searches_deleted = True
+            continue
+
         try:
             location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
         except:
@@ -224,6 +237,11 @@ def run_query(url, name, notify, minPrice, maxPrice):
         save_queries()
     else:
         print('\nAll lists are already up to date.')
+
+        # if at least one search was deleted updated the search file
+        if searches_deleted:
+            save_queries()
+
     # print("queries file saved: ", queries)
 
 
@@ -286,18 +304,18 @@ def in_between(now, start, end):
 	    return True
     else: # over midnight e.g., 23:30-04:15
         return start <= now or now < end
-		
+
 if __name__ == '__main__':
 
     ### Setup commands ###
 
     load_queries()
     load_api_credentials()
-    
+
     if args.list:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing current status...")
         print_queries()
-    
+
     if args.short_list:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing quick sitrep...")
         print_sitrep()
