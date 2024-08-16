@@ -174,7 +174,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
     '''
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
-    searches_deleted = False
+    products_deleted = False
 
     global queries
     page = requests.get(url)
@@ -197,14 +197,14 @@ def run_query(url, name, notify, minPrice, maxPrice):
             price = "Unknown price"
         link = product.find('a').get('href')
 
-        solded = product.find('span',re.compile(r'item-sold-badge'))
+        sold = product.find('span',re.compile(r'item-sold-badge'))
 
-        # check if the product has already been solded
-        if solded != None:
-            # if the search has previously been saved remove it from the file
+        # check if the product has already been sold
+        if sold != None:
+            # if the product has previously been saved remove it from the file
             if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
                 del queries[name][url][minPrice][maxPrice][link]
-                searches_deleted = True
+                products_deleted = True
             continue
 
         try:
@@ -239,7 +239,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
         print('\nAll lists are already up to date.')
 
         # if at least one search was deleted updated the search file
-        if searches_deleted:
+        if products_deleted:
             save_queries()
 
     # print("queries file saved: ", queries)
