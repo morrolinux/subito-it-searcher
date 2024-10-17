@@ -6,357 +6,193 @@ from bs4 import BeautifulSoup, Tag
 import json
 import os
 import platform
-import requests
 import re
-import time as t
-from datetime import datetime, time
+from datetime import datetime
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--add", dest='name', help="name of new tracking to be added")
-parser.add_argument("--url", help="url for your new tracking's search query")
-parser.add_argument("--minPrice", help="minimum price for the query")
-parser.add_argument("--maxPrice", help="maximum price for the query")
-parser.add_argument("--delete", help="name of the search you want to delete")
-parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help="refresh search results once")
-parser.set_defaults(refresh=False)
-parser.add_argument('--daemon', '-d', dest='daemon', action='store_true', help="keep refreshing search results forever (default delay 120 seconds)")
-parser.set_defaults(daemon=False)
-parser.add_argument('--activeHour', '-ah', dest='activeHour', help="Time slot. Hour when to be active in 24h notation")
-parser.add_argument('--pauseHour', '-ph', dest='pauseHour', help="Time slot. Hour when to pause in 24h notation")
-parser.add_argument('--delay', dest='delay', help="delay for the daemon option (in seconds)")
-parser.set_defaults(delay=120)
-parser.add_argument('--list', dest='list', action='store_true', help="print a list of current trackings")
-parser.set_defaults(list=False)
-parser.add_argument('--short_list', dest='short_list', action='store_true', help="print a more compact list")
-parser.set_defaults(short_list=False)
-parser.add_argument('--tgoff', dest='tgoff', action='store_true', help="turn off telegram messages")
-parser.set_defaults(tgoff=False)
-parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', help="turn off windows notifications")
-parser.set_defaults(win_notifyoff=False)
-parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
-parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
+# Set up argument parser
+parser = argparse.ArgumentParser(description="Track items for sale and notify on updates.")
+parser.add_argument("--add", dest='name', help="Name of new tracking to be added")
+parser.add_argument("--url", help="URL for your new tracking's search query")
+parser.add_argument("--minPrice", type=int, help="Minimum price for the query")
+parser.add_argument("--maxPrice", type=int, help="Maximum price for the query")
+parser.add_argument("--delete", help="Name of the search you want to delete")
+parser.add_argument('--refresh', '-r', action='store_true', help="Refresh search results once")
+parser.add_argument('--daemon', '-d', action='store_true', help="Keep refreshing search results indefinitely (default delay 120 seconds)")
+parser.add_argument('--activeHour', '-ah', help="Time slot. Hour when to be active in 24h notation")
+parser.add_argument('--pauseHour', '-ph', help="Time slot. Hour when to pause in 24h notation")
+parser.add_argument('--delay', type=int, default=120, help="Delay for the daemon option (in seconds)")
+parser.add_argument('--list', action='store_true', help="Print a list of current trackings")
+parser.add_argument('--short_list', action='store_true', help="Print a more compact list")
+parser.add_argument('--tgoff', action='store_true', help="Turn off Telegram messages")
+parser.add_argument('--notifyoff', action='store_true', help="Turn off Windows notifications")
+parser.add_argument('--addtoken', dest='token', help="Telegram setup: add bot API token")
+parser.add_argument('--addchatid', dest='chatid', help="Telegram setup: add bot chat ID")
 
 args = parser.parse_args()
 
-queries = dict()
-apiCredentials = dict()
-dbFile = "searches.tracked"
-telegramApiFile = "telegram_api_credentials"
+# Constants
+DB_FILE = "searches.tracked"
+TELEGRAM_API_FILE = "telegram_api_credentials"
+queries = {}
+api_credentials = {}
 
-# Windows notifications
+# Windows notifications setup
 if platform.system() == "Windows":
     from win10toast import ToastNotifier
     toaster = ToastNotifier()
 
+def load_json(file_path):
+    """Load JSON data from a specified file."""
+    if not os.path.isfile(file_path):
+        return {}
+    with open(file_path) as file:
+        return json.load(file)
 
-# load from file
-def load_queries():
-    '''A function to load the queries from the json file'''
-    global queries
-    global dbFile
-    if not os.path.isfile(dbFile):
-        return
+def save_json(file_path, data):
+    """Save JSON data to a specified file."""
+    with open(file_path, 'w') as file:
+        json.dump(data, file)
 
-    with open(dbFile) as file:
-        queries = json.load(file)
-
-def load_api_credentials():
-    '''A function to load the telegram api credentials from the json file'''
-    global apiCredentials
-    global telegramApiFile
-    if not os.path.isfile(telegramApiFile):
-        return
-
-    with open(telegramApiFile) as file:
-        apiCredentials = json.load(file)
-
+# Load data from files
+queries = load_json(DB_FILE)
+api_credentials = load_json(TELEGRAM_API_FILE)
 
 def print_queries():
-    '''A function to print the queries'''
-    global queries
-    #print(queries, "\n\n")
+    """Print the current search queries and results."""
+    for search_name, search_data in queries.items():
+        print(f"\nSearch: {search_name}")
+        for url, price_data in search_data.items():
+            for min_price, max_data in price_data.items():
+                for max_price, results in max_data.items():
+                    for link, details in results.items():
+                        print(f"\n{details['title']} : {details['price']} --> {details['location']}")
+                        print(f"Link: {link}")
 
-    for search in queries.items():
-        print("\nsearch: ", search[0])
-        for query_url in search[1]:
-            print("query url:", query_url)
-            for url in search[1].items():
-                for minP in url[1].items():
-                    for maxP in minP[1].items():
-                        for result in maxP[1].items():
-                            print("\n", result[1].get('title'), ":", result[1].get('price'), "-->", result[1].get('location'))
-                            print(" ", result[0])
-
-
-# printing a compact list of trackings
 def print_sitrep():
-    '''A function to print a compact list of trackings'''
-    global queries
-    i = 1
-    for search in queries.items():
-        print('\n{}) search: {}'.format(i, search[0]))
-        for query_url in search[1].items():
-            for minP in query_url[1].items():
-                for maxP in minP[1].items():
-                    print("query url:", query_url[0], " ", end='')
-                    if minP[0] !="null":
-                        print(minP[0],"<", end='')
-                    if minP[0] !="null" or maxP[0] !="null":
-                        print(" price ", end='')
-                    if maxP[0] !="null":
-                        print("<", maxP[0], end='')
-                    print("\n")
+    """Print a compact list of current tracking statuses."""
+    for i, (search_name, search_data) in enumerate(queries.items(), start=1):
+        print(f'\n{i}) Search: {search_name}')
+        for url, price_data in search_data.items():
+            for min_price, max_data in price_data.items():
+                for max_price, results in max_data.items():
+                    price_range = f"Price: {min_price} < {max_price}" if max_price != "null" else f"Min Price: {min_price}"
+                    print(f"Query URL: {url} - {price_range}")
 
-        i+=1
-
-def refresh(notify):
-    '''A function to refresh the queries
-
-    Arguments
-    ---------
-    notify: bool
-        whether to send notifications or not
-
-    Example usage
-    -------------
-    >>> refresh(True)   # Refresh queries and send notifications
-    >>> refresh(False)  # Refresh queries and don't send notifications
-    '''
-    global queries
+def refresh_queries(notify):
+    """Refresh the stored queries and notify if new items are found."""
     try:
-        for search in queries.items():
-            for url in search[1].items():
-                for minP in url[1].items():
-                    for maxP in minP[1].items():
-                        run_query(url[0], search[0], notify, minP[0], maxP[0])
-    except requests.exceptions.ConnectionError:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Connection error***")
-    except requests.exceptions.Timeout:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Server timeout error***")
-    except requests.exceptions.HTTPError:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***HTTP error***")
+        for search_name, search_data in queries.items():
+            for url, price_data in search_data.items():
+                for min_price, max_data in price_data.items():
+                    for max_price, results in max_data.items():
+                        run_query(url, search_name, notify, min_price, max_price)
+    except requests.exceptions.RequestException as e:
+        print(f"{datetime.now()}: ***Error occurred: {e}***")
 
+def delete_query(to_delete):
+    """Delete a specified search query."""
+    queries.pop(to_delete, None)
 
-def delete(toDelete):
-    '''A function to delete a query
-
-    Arguments
-    ---------
-    toDelete: str
-        the query to delete
-
-    Example usage
-    -------------
-    >>> delete("query")
-    '''
-    global queries
-    queries.pop(toDelete)
-
-def run_query(url, name, notify, minPrice, maxPrice):
-    '''A function to run a query
-
-    Arguments
-    ---------
-    url: str
-        the url to run the query on
-    name: str
-        the name of the query
-    notify: bool
-        whether to send notifications or not
-    minPrice: str
-        the minimum price to search for
-    maxPrice: str
-        the maximum price to search for
-
-    Example usage
-    -------------
-    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null")
-    '''
-    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
-
+def run_query(url, name, notify, min_price, max_price):
+    """Execute a search query and check for new items."""
+    print(f"{datetime.now()}: Running query (\"{name}\" - {url})...")
     products_deleted = False
+    msg = []
 
-    global queries
+    # Validate and sanitize the URL
+    if not re.match(r'^https?://', url):
+        print(f"{datetime.now()}: Invalid URL: {url}")
+        return
+
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'html.parser')
-
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
-    msg = []
 
     for product in product_list_items:
         title = product.find('h2').string
         try:
-            price=product.find('p',class_=re.compile(r'price')).contents[0]
-            # check if the span tag exists
-            price_soup = BeautifulSoup(price, 'html.parser')
-            if type(price_soup) == Tag:
-                continue
-            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
-            price = int(price.replace('.','')[:-2])
-        except:
+            price = product.find('p', class_=re.compile(r'price')).get_text(strip=True)
+            price = int(price.replace('.', '')[:-2])  # Assuming price has decimals
+        except Exception:
             price = "Unknown price"
-        link = product.find('a').get('href')
 
-        sold = product.find('span',re.compile(r'item-sold-badge'))
+        link = product.find('a')['href']
+        sold = product.find('span', re.compile(r'item-sold-badge'))
 
-        # check if the product has already been sold
-        if sold != None:
-            # if the product has previously been saved remove it from the file
-            if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
-                del queries[name][url][minPrice][maxPrice][link]
+        # Check if the product has already been sold
+        if sold is not None:
+            if link in queries.get(name, {}).get(url, {}).get(min_price, {}).get(max_price, {}):
+                del queries[name][url][min_price][max_price][link]
                 products_deleted = True
             continue
 
         try:
-            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
-        except:
-            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
+            location = product.find('span', re.compile(r'town')).string + product.find('span', re.compile(r'city')).string
+        except Exception:
+            print(f"{datetime.now()}: Unknown location for item: {title}")
             location = "Unknown location"
-        if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
-            if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
-                if not queries.get(name):   # insert the new search
-                    queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
-                    print("\n" + datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New search added:", name)
-                    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
-                else:   # add search results to dictionary
-                    if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                        tmp = datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
-                        msg.append(tmp)
-                        queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
 
-    if len(msg) > 0:
+        if (min_price is None or price == "Unknown price" or price >= min_price) and (max_price is None or price == "Unknown price" or price <= max_price):
+            if name not in queries:  # Insert the new search
+                queries[name] = {url: {min_price: {max_price: {link: {'title': title, 'price': price, 'location': location}}}}}
+                print(f"{datetime.now()}: New search added: {name}")
+                print(f"{datetime.now()}: Adding result: {title} - {price} - {location}")
+            else:  # Add search results to dictionary
+                if link not in queries[name][url][min_price][max_price]:
+                    queries[name][url][min_price][max_price][link] = {'title': title, 'price': price, 'location': location}
+                    msg.append(f"{datetime.now()}: New element found for {name}: {title} @ {price} - {location} --> {link}")
+
+    if msg:
         if notify:
-            # Windows only: send notification
-            if not args.win_notifyoff and platform.system() == "Windows":
-                global toaster
-                toaster.show_toast("New announcements", "Query: " + name)
-            if is_telegram_active():
-                send_telegram_messages(msg)
-            print("\n".join(msg))
-            print('\n{} new elements have been found.'.format(len(msg)))
-        save_queries()
+            notify_user(msg)
+        save_json(DB_FILE, queries)  # Save queries if modified
     else:
         print('\nAll lists are already up to date.')
 
-        # if at least one search was deleted updated the search file
-        if products_deleted:
-            save_queries()
+    # Save updated queries if any products were deleted
+    if products_deleted:
+        save_json(DB_FILE, queries)
 
-    # print("queries file saved: ", queries)
-
-
-def save_queries():
-    '''A function to save the queries
-    '''
-    with open(dbFile, 'w') as file:
-        file.write(json.dumps(queries))
-
-def save_api_credentials():
-    '''A function to save the telegram api credentials into the telegramApiFile'''
-    with open(telegramApiFile, 'w') as file:
-        file.write(json.dumps(apiCredentials))
+def notify_user(msg):
+    """Send notifications to the user based on the platform."""
+    if not args.notifyoff and platform.system() == "Windows":
+        global toaster
+        toaster.show_toast("New Announcements", f"Query: {name}")
+    if is_telegram_active():
+        send_telegram_messages(msg)
+    print("\n".join(msg))
+    print(f'\n{len(msg)} new elements have been found.')
 
 def is_telegram_active():
-    '''A function to check if telegram is active, i.e. if the api credentials are present
-
-    Returns
-    -------
-    bool
-        True if telegram is active, False otherwise
-    '''
-    return not args.tgoff and "chatid" in apiCredentials and "token" in apiCredentials
+    """Check if Telegram notifications are active."""
+    return not args.tgoff and "chatid" in api_credentials and "token" in api_credentials
 
 def send_telegram_messages(messages):
-    '''A function to send messages to telegram
-
-    Arguments
-    ---------
-    messages: list
-        the list of messages to send
-
-    Example usage
-    -------------
-    >>> send_telegram_messages(["message1", "message2"])
-    '''
+    """Send a list of messages to the specified Telegram chat."""
     for msg in messages:
-        request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&text=" + msg
+        request_url = f"https://api.telegram.org/bot{api_credentials['token']}/sendMessage?chat_id={api_credentials['chatid']}&text={msg}"
         requests.get(request_url)
 
-def in_between(now, start, end):
-    '''A function to check if a time is in between two other times
-
-    Arguments
-    ---------
-    now: datetime
-        the time to check
-    start: datetime
-        the start time
-    end: datetime
-        the end time
-
-    Example usage
-    -------------
-    >>> in_between(datetime.now(), datetime(2021, 5, 20, 0, 0, 0), datetime(2021, 5, 20, 23, 59, 59))
-    '''
-    if start < end:
-        return start <= now < end
-    elif start == end:
-	    return True
-    else: # over midnight e.g., 23:30-04:15
-        return start <= now or now < end
-
 if __name__ == '__main__':
-
-    ### Setup commands ###
-
-    load_queries()
-    load_api_credentials()
-
+    # Check for specific commands and execute accordingly
     if args.list:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing current status...")
+        print(f"{datetime.now()}: Printing current status...")
         print_queries()
 
     if args.short_list:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing quick sitrep...")
+        print(f"{datetime.now()}: Printing quick sitrep...")
         print_sitrep()
 
-    if args.url is not None and args.name is not None:
-        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Query added.")
-
-    if args.delete is not None:
-        delete(args.delete)
-
-    if args.activeHour is None:
-        args.activeHour="0"
-
-    if args.pauseHour is None:
-        args.pauseHour="0"
-
-    # Telegram setup
-
-    if args.token is not None and args.chatid is not None:
-        apiCredentials["token"] = args.token
-        apiCredentials["chatid"] = args.chatid
-        save_api_credentials()
-
-    ### Run commands ###
+    if args.add and args.url:
+        if args.minPrice is None:
+            args.minPrice = "null"
+        if args.maxPrice is None:
+            args.maxPrice = "null"
+        run_query(args.url, args.name, notify=True, minPrice=args.minPrice, maxPrice=args.maxPrice)
 
     if args.refresh:
-        refresh(True)
+        refresh_queries(notify=True)
 
-    print()
-    save_queries()
-
-
-    if args.daemon:
-        notify = False # Don't flood with notifications the first time
-        while True:
-            if in_between(datetime.now().time(), time(int(args.activeHour)), time(int(args.pauseHour))):
-                refresh(notify)
-                notify = True
-                print()
-                print(str(args.delay) + " seconds to next poll.")
-                save_queries()
-            t.sleep(int(args.delay))
-
+    if args.delete:
+        delete_query(args.delete)
+        save_json(DB_FILE, queries)  # Save changes after deletion
