@@ -12,7 +12,10 @@ import time as t
 from datetime import datetime, time
 
 from utils.utils import *
-from utils.BLACKLIST import BLACKLIST
+from cars.utils_cars import *
+
+from utils.BLACKLIST import get_BLACKLIST
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--add", dest='name', help="name of new tracking to be added")
@@ -38,6 +41,15 @@ parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', he
 parser.set_defaults(win_notifyoff=False)
 parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
 parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
+
+# CARS
+parser.add_argument('--cars', dest='cars', action='store_true', help="expand filter options with additional info")
+# parser.add_argument("--condition", help="expected condition for item")
+parser.add_argument("--minDate", default="null", help="minumun registration date for the query")
+parser.add_argument("--maxDate", default="null", help="maximum registration date for the query")
+parser.add_argument("--minKM", default="1", help="maximum KM for the query")
+parser.add_argument("--maxKM", default="1000000", help="minimum KM for the query")
+
 
 args = parser.parse_args()
 
@@ -113,9 +125,19 @@ def check_query_criteria(product, title, price, minPrice, maxPrice):
         the maximum price
     '''
     for word in str(title.string).split(" "):
-        if word.lower() in BLACKLIST:
+        if word.lower() in get_BLACKLIST(args.cars):
             return False
 
+    # CARS
+    if args.cars:
+        try:
+            cars_match = run_all_car_checks(product, minDate=args.minDate, maxDate=args.maxDate, minKM=args.minKM, maxKM=args.maxKM)
+            if not cars_match:
+                return False
+        except:
+            pass
+
+    # PRICE
     price_match = minPrice_check(minPrice, price) and maxPrice_check(maxPrice, price)
     return True if price_match else False
 
