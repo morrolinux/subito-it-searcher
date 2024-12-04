@@ -12,6 +12,7 @@ import time as t
 from datetime import datetime, time
 
 from utils.utils import *
+from utils.BLACKLIST import BLACKLIST
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--add", dest='name', help="name of new tracking to be added")
@@ -111,6 +112,10 @@ def check_query_criteria(product, title, price, minPrice, maxPrice):
     maxPrice: str
         the maximum price
     '''
+    for word in str(title.string).split(" "):
+        if word.lower() in BLACKLIST:
+            return False
+
     price_match = minPrice_check(minPrice, price) and maxPrice_check(maxPrice, price)
     return True if price_match else False
 

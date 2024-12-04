@@ -10,6 +10,7 @@ Features (thanks to Marco Perronet)
 * Easier Telegram setup
 * Handle connection errors
 * Fix flooding on Telegram
+* Black-listing keywords for better filtering
 
 ## Setup
 
@@ -30,7 +31,7 @@ To configure Telegram, simply invoke the script with the proper parameters as fo
 `python3 subito-searcher.py --addtoken [YOUR_API_TOKEN] --addchatid [YOUR_CHANNEL_NAME]`
 
 ## Usage
-Write `python3 subito-searcher.py --help` to see all the command line arguments. Keep in mind that the script *always* needs some argument in order to start. 
+Write `python3 subito-searcher.py --help` to see all the command line arguments. Keep in mind that the script *always* needs some argument in order to start.
 
 Here is a cheatsheet of the most common usages:
 
