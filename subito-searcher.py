@@ -93,6 +93,28 @@ def delete(queries, toDelete):
     '''
     queries.pop(toDelete)
 
+
+def check_query_criteria(product, title, price, minPrice, maxPrice):
+    '''
+    A function to check product information against query criteria.
+
+    Arguments
+    ---------
+    product: beautiful_soup object
+        the product to run check on
+    title: str
+        title of the product's ad
+    price: int
+        price of product
+    minPrice: str
+        the minimum price
+    maxPrice: str
+        the maximum price
+    '''
+    price_match = minPrice_check(minPrice, price) and maxPrice_check(maxPrice, price)
+    return True if price_match else False
+
+
 def run_query(queries, url, name, notify, minPrice, maxPrice):
     '''A function to run a query
 
@@ -156,17 +178,20 @@ def run_query(queries, url, name, notify, minPrice, maxPrice):
             location = "Unknown location"
 
         # Check product details against query criteria
-        if minPrice_check(minPrice=minPrice, price=price):
-            if maxPrice_check(maxPrice=maxPrice, price=price):
-                if not queries.get(name):   # insert the new search
-                    queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
-                    print("\n" + datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New search added:", name)
-                    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
-                else:   # add search results to dictionary
-                    if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                        tmp = datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
-                        msg.append(tmp)
-                        queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
+        if check_query_criteria(product=product,
+                                title=title,
+                                price=price,
+                                minPrice=minPrice,
+                                maxPrice=maxPrice):
+            if not queries.get(name):   # insert the new search
+                queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
+                print("\n" + datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New search added:", name)
+                print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
+            else:   # add search results to dictionary
+                if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
+                    tmp = datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New element found for "+name+": "+title+" @ "+str(price)+" - "+location+" --> "+link+'\n'
+                    msg.append(tmp)
+                    queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
         if notify:
