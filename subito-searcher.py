@@ -152,6 +152,33 @@ def delete(toDelete):
     global queries
     queries.pop(toDelete)
 
+def add(url, name, minPrice, maxPrice):
+    ''' A function to add a new query
+
+    Arguments
+    ---------
+    url: str
+        the url to run the query on
+    name: str
+        the name of the query
+    minPrice: str
+        the minimum price to search for
+    maxPrice: str
+        the maximum price to search for
+
+    Example usage
+    -------------
+    >>> add("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "auto", 100, "null")
+    '''
+    global queries
+
+    # If the query has already been added previously, delete it
+    if queries.get(name):
+        delete(name)
+
+    queries[name] = {url:{minPrice: {maxPrice:{}}}}
+
+
 def run_query(url, name, notify, minPrice, maxPrice):
     '''A function to run a query
 
@@ -214,21 +241,17 @@ def run_query(url, name, notify, minPrice, maxPrice):
             location = "Unknown location"
         if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
             if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
-                if not queries.get(name):   # insert the new search
-                    queries[name] = {url:{minPrice: {maxPrice: {link: {'title': title, 'price': price, 'location': location}}}}}
-                    print("\n" + datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " New search added:", name)
+                if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
+                    tmp = (
+                        datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
+                        + str(price) + "\n"
+                        + title + "\n"
+                        + location + "\n"
+                        + link + '\n'
+                    )
+                    msg.append(tmp)
+                    queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
                     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
-                else:   # add search results to dictionary
-                    if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                        tmp = (
-                            datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n" 
-                            + str(price) + "\n"
-                            + title + "\n"
-                            + location + "\n"
-                            + link + '\n'
-                        )
-                        msg.append(tmp)
-                        queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
 
     if len(msg) > 0:
         if notify:
@@ -244,7 +267,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
     else:
         print('\nAll lists are already up to date.')
 
-        # if at least one search was deleted updated the search file
+        # if at least one search was deleted, update the search file
         if products_deleted:
             save_queries()
 
@@ -327,6 +350,7 @@ if __name__ == '__main__':
         print_sitrep()
 
     if args.url is not None and args.name is not None:
+        add(args.url, args.name, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null")
         run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Query added.")
 
