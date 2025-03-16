@@ -181,7 +181,7 @@ def add(url, name, minPrice, maxPrice):
     queries[name] = {url:{minPrice: {maxPrice:{}}}}
 
 
-def run_query(url, name, notify, minPrice, maxPrice):
+def run_query(url, name, notify, minPrice, maxPrice, maxPages=3):
     '''A function to run a query
 
     Arguments
@@ -215,50 +215,59 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
+    page_number = 1
+    total_results = int(soup.find('p', class_=re.compile(r'caption total-ads')).string.split()[0])
+    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Found {} results.".format(total_results))
+    processed_results = 0
+    while processed_results < total_results and page_number < maxPages:
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Processing page {}...".format(page_number))
+        page = requests.get(url+f"&o={page_number}", headers=headers)
+        soup = BeautifulSoup(page.text, 'html.parser')
+        product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
+        for product in product_list_items:
+            title = product.find('h2').string
+            try:
+                price=product.find('p',class_=re.compile(r'price')).contents[0]
+                # check if the span tag exists
+                price_soup = BeautifulSoup(price, 'html.parser')
+                if type(price_soup) == Tag:
+                    continue
+                #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
+                price = int(price.replace('.','')[:-2])
+            except:
+                price = "Unknown price"
+            link = product.find('a').get('href')
 
-    for product in product_list_items:
-        title = product.find('h2').string
-        try:
-            price=product.find('p',class_=re.compile(r'price')).contents[0]
-            # check if the span tag exists
-            price_soup = BeautifulSoup(price, 'html.parser')
-            if type(price_soup) == Tag:
+            sold = product.find('span',re.compile(r'item-sold-badge'))
+
+            # check if the product has already been sold
+            if sold != None:
+                # if the product has previously been saved remove it from the file
+                if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
+                    del queries[name][url][minPrice][maxPrice][link]
+                    products_deleted = True
                 continue
-            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
-            price = int(price.replace('.','')[:-2])
-        except:
-            price = "Unknown price"
-        link = product.find('a').get('href')
 
-        sold = product.find('span',re.compile(r'item-sold-badge'))
-
-        # check if the product has already been sold
-        if sold != None:
-            # if the product has previously been saved remove it from the file
-            if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
-                del queries[name][url][minPrice][maxPrice][link]
-                products_deleted = True
-            continue
-
-        try:
-            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
-        except:
-            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
-            location = "Unknown location"
-        if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
-            if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
-                if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                    tmp = (
-                        datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
-                        + str(price) + "\n"
-                        + title + "\n"
-                        + location + "\n"
-                        + link + '\n'
-                    )
-                    msg.append(tmp)
-                    queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
-                    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
-
+            try:
+                location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
+            except:
+                print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
+                location = "Unknown location"
+            if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
+                if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
+                    if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
+                        tmp = (
+                            datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
+                            + str(price) + "\n"
+                            + title + "\n"
+                            + location + "\n"
+                            + link + '\n'
+                        )
+                        msg.append(tmp)
+                        queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
+                        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
+        page_number += 1
+        processed_results += len(product_list_items)
     if len(msg) > 0:
         if notify:
             # Windows only: send notification
