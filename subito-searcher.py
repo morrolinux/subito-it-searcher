@@ -220,7 +220,7 @@ def run_query(url, name, notify, minPrice, maxPrice, maxPages):
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
     page_number = 1
-    total_results = int(soup.find('p', class_=re.compile(r'caption total-ads')).string.split()[0])
+    total_results = int(soup.find('p', class_=re.compile(r'caption total-ads')).string.split()[0]) if len(product_list_items) > 0 else 0
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Found {} results.".format(total_results))
     processed_results = 0
     while processed_results < total_results and page_number < maxPages:
