@@ -206,7 +206,11 @@ def run_query(url, name, notify, minPrice, maxPrice):
     products_deleted = False
 
     global queries
-    page = requests.get(url)
+    headers = {
+     "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0"
+    }
+
+    page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
