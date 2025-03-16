@@ -21,6 +21,8 @@ parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help
 parser.set_defaults(refresh=False)
 parser.add_argument('--daemon', '-d', dest='daemon', action='store_true', help="keep refreshing search results forever (default delay 120 seconds)")
 parser.set_defaults(daemon=False)
+parser.add_argument('--maxPages', '-mp', dest='maxPages', help="maximum number of pages to process (default 1)")
+parser.set_defaults(maxPages=1)
 parser.add_argument('--activeHour', '-ah', dest='activeHour', help="Time slot. Hour when to be active in 24h notation")
 parser.add_argument('--pauseHour', '-ph', dest='pauseHour', help="Time slot. Hour when to pause in 24h notation")
 parser.add_argument('--delay', dest='delay', help="delay for the daemon option (in seconds)")
@@ -128,7 +130,7 @@ def refresh(notify):
             for url in search[1].items():
                 for minP in url[1].items():
                     for maxP in minP[1].items():
-                        run_query(url[0], search[0], notify, minP[0], maxP[0])
+                        run_query(url[0], search[0], notify, minP[0], maxP[0],int(args.maxPages))
     except requests.exceptions.ConnectionError:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Connection error***")
     except requests.exceptions.Timeout:
@@ -181,7 +183,7 @@ def add(url, name, minPrice, maxPrice):
     queries[name] = {url:{minPrice: {maxPrice:{}}}}
 
 
-def run_query(url, name, notify, minPrice, maxPrice, maxPages=3):
+def run_query(url, name, notify, minPrice, maxPrice, maxPages):
     '''A function to run a query
 
     Arguments
@@ -196,10 +198,12 @@ def run_query(url, name, notify, minPrice, maxPrice, maxPages=3):
         the minimum price to search for
     maxPrice: str
         the maximum price to search for
+    maxPages: int
+        the maximum number of pages to process
 
     Example usage
     -------------
-    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null")
+    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null",3)
     '''
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
@@ -366,7 +370,7 @@ if __name__ == '__main__':
 
     if args.url is not None and args.name is not None:
         add(args.url, args.name, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null")
-        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
+        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",int(args.maxPages))
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Query added.")
 
     if args.delete is not None:
