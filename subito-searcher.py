@@ -224,7 +224,6 @@ def run_query(url, name, notify, minPrice, maxPrice):
     }
 
     page = requests.get(url, headers=headers)
-    print(f'------------\n{page=}\n------------')
     soup = BeautifulSoup(page.text, 'html.parser')
 
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
