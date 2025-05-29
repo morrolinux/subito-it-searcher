@@ -21,6 +21,8 @@ parser.add_argument('--refresh', '-r', dest='refresh', action='store_true', help
 parser.set_defaults(refresh=False)
 parser.add_argument('--daemon', '-d', dest='daemon', action='store_true', help="keep refreshing search results forever (default delay 120 seconds)")
 parser.set_defaults(daemon=False)
+parser.add_argument('--maxPages', '-mp', dest='maxPages', help="maximum number of pages to process (default 1)")
+parser.set_defaults(maxPages=1)
 parser.add_argument('--activeHour', '-ah', dest='activeHour', help="Time slot. Hour when to be active in 24h notation")
 parser.add_argument('--pauseHour', '-ph', dest='pauseHour', help="Time slot. Hour when to pause in 24h notation")
 parser.add_argument('--delay', dest='delay', help="delay for the daemon option (in seconds)")
@@ -128,7 +130,7 @@ def refresh(notify):
             for url in search[1].items():
                 for minP in url[1].items():
                     for maxP in minP[1].items():
-                        run_query(url[0], search[0], notify, minP[0], maxP[0])
+                        run_query(url[0], search[0], notify, minP[0], maxP[0],int(args.maxPages))
     except requests.exceptions.ConnectionError:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***Connection error***")
     except requests.exceptions.Timeout:
@@ -181,7 +183,7 @@ def add(url, name, minPrice, maxPrice):
     queries[name] = {url:{minPrice: {maxPrice:{}}}}
 
 
-def run_query(url, name, notify, minPrice, maxPrice):
+def run_query(url, name, notify, minPrice, maxPrice, maxPages):
     '''A function to run a query
 
     Arguments
@@ -196,10 +198,12 @@ def run_query(url, name, notify, minPrice, maxPrice):
         the minimum price to search for
     maxPrice: str
         the maximum price to search for
+    maxPages: int
+        the maximum number of pages to process
 
     Example usage
     -------------
-    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null")
+    >>> run_query("https://www.subito.it/annunci-italia/vendita/usato/?q=auto", "query", True, 100, "null",3)
     '''
     print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " running query (\"{}\" - {})...".format(name, url))
 
@@ -228,50 +232,59 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
     product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
+    page_number = 1
+    total_results = int(soup.find('p', class_=re.compile(r'caption total-ads')).string.split()[0]) if len(product_list_items) > 0 else 0
+    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Found {} results.".format(total_results))
+    processed_results = 0
+    while processed_results < total_results and page_number <= maxPages:
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Processing page {}...".format(page_number))
+        page = requests.get(url+f"&o={page_number}", headers=headers)
+        soup = BeautifulSoup(page.text, 'html.parser')
+        product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
+        for product in product_list_items:
+            title = product.find('h2').string
+            try:
+                price=product.find('p',class_=re.compile(r'price')).contents[0]
+                # check if the span tag exists
+                price_soup = BeautifulSoup(price, 'html.parser')
+                if type(price_soup) == Tag:
+                    continue
+                #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
+                price = int(price.replace('.','')[:-2])
+            except:
+                price = "Unknown price"
+            link = product.find('a').get('href')
 
-    for product in product_list_items:
-        title = product.find('h2').string
-        try:
-            price=product.find('p',class_=re.compile(r'price')).contents[0]
-            # check if the span tag exists
-            price_soup = BeautifulSoup(price, 'html.parser')
-            if type(price_soup) == Tag:
+            sold = product.find('span',re.compile(r'item-sold-badge'))
+
+            # check if the product has already been sold
+            if sold != None:
+                # if the product has previously been saved remove it from the file
+                if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
+                    del queries[name][url][minPrice][maxPrice][link]
+                    products_deleted = True
                 continue
-            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
-            price = int(price.replace('.','')[:-2])
-        except:
-            price = "Unknown price"
-        link = product.find('a').get('href')
 
-        sold = product.find('span',re.compile(r'item-sold-badge'))
-
-        # check if the product has already been sold
-        if sold != None:
-            # if the product has previously been saved remove it from the file
-            if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
-                del queries[name][url][minPrice][maxPrice][link]
-                products_deleted = True
-            continue
-
-        try:
-            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
-        except:
-            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
-            location = "Unknown location"
-        if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
-            if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
-                if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
-                    tmp = (
-                        datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
-                        + str(price) + "\n"
-                        + title + "\n"
-                        + location + "\n"
-                        + link + '\n'
-                    )
-                    msg.append(tmp)
-                    queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
-                    print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
-
+            try:
+                location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
+            except:
+                print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
+                location = "Unknown location"
+            if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
+                if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
+                    if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
+                        tmp = (
+                            datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
+                            + str(price) + "\n"
+                            + title + "\n"
+                            + location + "\n"
+                            + link + '\n'
+                        )
+                        msg.append(tmp)
+                        queries[name][url][minPrice][maxPrice][link] ={'title': title, 'price': price, 'location': location}
+                        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Adding result:", title, "-", price, "-", location)
+        page_number += 1
+        processed_results += len(product_list_items)
     if len(msg) > 0:
         if notify:
             # Windows only: send notification
@@ -370,7 +383,7 @@ if __name__ == '__main__':
 
     if args.url is not None and args.name is not None:
         add(args.url, args.name, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null")
-        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",)
+        run_query(args.url, args.name, False, args.minPrice if args.minPrice is not None else "null", args.maxPrice if args.maxPrice is not None else "null",int(args.maxPages))
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Query added.")
 
     if args.delete is not None:
