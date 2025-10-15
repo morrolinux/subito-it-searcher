@@ -35,11 +35,17 @@ parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', he
 parser.set_defaults(win_notifyoff=False)
 parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
 parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
+parser.add_argument('--ntfy_server', dest='ntfy_server', help="Set ntfy server URL")
+parser.add_argument('--ntfy_topic', dest='ntfy_topic', help="Set ntfy topic for notifications")
+parser.add_argument('--ntfyoff', dest='ntfyoff', action='store_true', help="Turn off ntfy notifications")
+parser.set_defaults(ntfyoff=False)
 
 args = parser.parse_args()
 
 queries = dict()
 apiCredentials = dict()
+ntfyConfig = dict()
+ntfyConfigFile = "ntfy_config"
 dbFile = "searches.tracked"
 telegramApiFile = "telegram_api_credentials"
 
@@ -70,6 +76,15 @@ def load_api_credentials():
     with open(telegramApiFile) as file:
         apiCredentials = json.load(file)
 
+def load_ntfy_config():
+    '''A function to load the ntfy config from the json file'''
+    global ntfyConfig
+    global ntfyConfigFile
+    if not os.path.isfile(ntfyConfigFile):
+        return
+
+    with open(ntfyConfigFile) as file:
+        ntfyConfig = json.load(file)
 
 def print_queries():
     '''A function to print the queries'''
@@ -280,6 +295,8 @@ def run_query(url, name, notify, minPrice, maxPrice):
                 toaster.show_toast("New announcements", "Query: " + name)
             if is_telegram_active():
                 send_telegram_messages(msg)
+            if is_ntfy_active():
+                send_ntfy_messages(msg)
             print("\n".join(msg))
             print('\n{} new elements have been found.'.format(len(msg)))
         save_queries()
@@ -303,6 +320,24 @@ def save_api_credentials():
     '''A function to save the telegram api credentials into the telegramApiFile'''
     with open(telegramApiFile, 'w') as file:
         file.write(json.dumps(apiCredentials))
+
+def save_ntfy_config():
+    '''A function to save the ntfy config into the ntfyConfigFile'''
+    with open(ntfyConfigFile, 'w') as file:
+        file.write(json.dumps(ntfyConfig))
+
+def send_ntfy_messages(messages):
+    for msg in messages:
+        if not args.ntfyoff and "ntfy_server" in ntfyConfig and "ntfy_topic" in ntfyConfig:
+            url = f"{ntfyConfig['ntfy_server'].rstrip('/')}/{ntfyConfig['ntfy_topic']}"
+            try:
+                requests.post(url, data=msg.encode('utf-8'))
+            except Exception as e:
+                print(f"Failed to send ntfy notification: {e}")
+
+def is_ntfy_active():
+    '''A function to check if ntfy is active, i.e. if the ntfy config is present and not disabled'''
+    return not args.ntfyoff and "ntfy_server" in ntfyConfig and "ntfy_topic" in ntfyConfig
 
 def is_telegram_active():
     '''A function to check if telegram is active, i.e. if the api credentials are present
@@ -359,6 +394,7 @@ if __name__ == '__main__':
 
     load_queries()
     load_api_credentials()
+    load_ntfy_config()
 
     if args.list:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing current status...")
@@ -381,6 +417,12 @@ if __name__ == '__main__':
 
     if args.pauseHour is None:
         args.pauseHour="0"
+
+    # NTFY setup (save config if new args passed)
+    if args.ntfy_server is not None and args.ntfy_topic is not None:
+        ntfyConfig["ntfy_server"] = args.ntfy_server
+        ntfyConfig["ntfy_topic"] = args.ntfy_topic
+        save_ntfy_config()
 
     # Telegram setup
 
@@ -408,4 +450,3 @@ if __name__ == '__main__':
                 print(str(args.delay) + " seconds to next poll.")
                 save_queries()
             t.sleep(int(args.delay))
-
