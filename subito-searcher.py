@@ -241,13 +241,13 @@ def run_query(url, name, notify, minPrice, maxPrice):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
+    product_list_items = soup.find_all('article', class_=re.compile(r'index-module_card'))
     msg = []
 
     for product in product_list_items:
-        title = product.find('h2').string
+        title = product.find('h3').string
         try:
-            price=product.find('p',class_=re.compile(r'price')).contents[0]
+            price=product.find('p',class_=re.compile(r'index-module_price')).contents[0]
             # check if the span tag exists
             price_soup = BeautifulSoup(price, 'html.parser')
             if type(price_soup) == Tag:
@@ -269,7 +269,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
             continue
 
         try:
-            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
+            location = product.find('span',class_=re.compile(r'index-module_location')).contents[0].string
         except:
             print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
             location = "Unknown location"
