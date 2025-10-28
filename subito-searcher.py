@@ -258,7 +258,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
             price = "Unknown price"
         link = product.find('a').get('href')
 
-        sold = product.find('span',re.compile(r'item-sold-badge'))
+        sold = product.find('span',re.compile(r'index-module_soldBadge'))
 
         # check if the product has already been sold
         if sold != None:
