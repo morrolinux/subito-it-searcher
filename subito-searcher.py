@@ -35,17 +35,11 @@ parser.add_argument('--notifyoff', dest='win_notifyoff', action='store_true', he
 parser.set_defaults(win_notifyoff=False)
 parser.add_argument('--addtoken', dest='token', help="telegram setup: add bot API token")
 parser.add_argument('--addchatid', dest='chatid', help="telegram setup: add bot chat id")
-parser.add_argument('--ntfy_server', dest='ntfy_server', help="Set ntfy server URL")
-parser.add_argument('--ntfy_topic', dest='ntfy_topic', help="Set ntfy topic for notifications")
-parser.add_argument('--ntfyoff', dest='ntfyoff', action='store_true', help="Turn off ntfy notifications")
-parser.set_defaults(ntfyoff=False)
 
 args = parser.parse_args()
 
 queries = dict()
 apiCredentials = dict()
-ntfyConfig = dict()
-ntfyConfigFile = "ntfy_config"
 dbFile = "searches.tracked"
 telegramApiFile = "telegram_api_credentials"
 
@@ -76,15 +70,6 @@ def load_api_credentials():
     with open(telegramApiFile) as file:
         apiCredentials = json.load(file)
 
-def load_ntfy_config():
-    '''A function to load the ntfy config from the json file'''
-    global ntfyConfig
-    global ntfyConfigFile
-    if not os.path.isfile(ntfyConfigFile):
-        return
-
-    with open(ntfyConfigFile) as file:
-        ntfyConfig = json.load(file)
 
 def print_queries():
     '''A function to print the queries'''
@@ -151,7 +136,7 @@ def refresh(notify):
     except requests.exceptions.HTTPError:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***HTTP error***")
     except Exception as e:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " " + e)
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " " + e)  
 
 
 def delete(toDelete):
@@ -241,61 +226,38 @@ def run_query(url, name, notify, minPrice, maxPrice):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    script_tag = soup.find('script', id='__NEXT_DATA__')
-    if not script_tag:
-        print("Error: Could not find JSON data on page (Next.js data not found).")
-        return
-
-    json_data = json.loads(script_tag.string)
-
-    try:
-        items_list = json_data['props']['pageProps']['initialState']['items']['list']
-    except KeyError:
-        items_list = []
-
+    product_list_items = soup.find_all('div', class_=re.compile(r'item-card'))
     msg = []
 
-    for item_wrapper in items_list:
-        product = item_wrapper.get('item')
-
-        if not product:
-            continue
-
+    for product in product_list_items:
+        title = product.find('h2').string
         try:
-            item_key = product.get('urn')
-            if not item_key: continue
-
-            title = product.get('subject', 'No Title')
-            link = product.get('urls', {}).get('default', '')
-            location = product.get('geo', {}).get('town', {}).get('value', 'Unknown location')
-
-            # Price extraction
-            raw_price = None
+            price=product.find('p',class_=re.compile(r'price')).contents[0]
+            # check if the span tag exists
+            price_soup = BeautifulSoup(price, 'html.parser')
+            if type(price_soup) == Tag:
+                continue
+            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
+            price = int(price.replace('.','')[:-2])
+        except:
             price = "Unknown price"
-            features = product.get('features', {})
-            price_feature = features.get('/price')
-            if price_feature and 'values' in price_feature:
-                raw_price = price_feature['values'][0].get('key')
+        link = product.find('a').get('href')
 
-            if raw_price:
-                try:
-                    price = int(raw_price)
-                except ValueError:
-                    pass
-
-            is_sold = product.get('sold', False)
-
-        except Exception as e:
-            continue
+        sold = product.find('span',re.compile(r'item-sold-badge'))
 
         # check if the product has already been sold
-        if is_sold:
+        if sold != None:
             # if the product has previously been saved remove it from the file
             if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
                 del queries[name][url][minPrice][maxPrice][link]
                 products_deleted = True
             continue
 
+        try:
+            location = product.find('span',re.compile(r'town')).string + product.find('span',re.compile(r'city')).string
+        except:
+            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
+            location = "Unknown location"
         if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
             if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
                 if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
@@ -318,8 +280,6 @@ def run_query(url, name, notify, minPrice, maxPrice):
                 toaster.show_toast("New announcements", "Query: " + name)
             if is_telegram_active():
                 send_telegram_messages(msg)
-            if is_ntfy_active():
-                send_ntfy_messages(msg)
             print("\n".join(msg))
             print('\n{} new elements have been found.'.format(len(msg)))
         save_queries()
@@ -329,6 +289,9 @@ def run_query(url, name, notify, minPrice, maxPrice):
         # if at least one search was deleted, update the search file
         if products_deleted:
             save_queries()
+
+    # print("queries file saved: ", queries)
+
 
 def save_queries():
     '''A function to save the queries
@@ -340,24 +303,6 @@ def save_api_credentials():
     '''A function to save the telegram api credentials into the telegramApiFile'''
     with open(telegramApiFile, 'w') as file:
         file.write(json.dumps(apiCredentials))
-
-def save_ntfy_config():
-    '''A function to save the ntfy config into the ntfyConfigFile'''
-    with open(ntfyConfigFile, 'w') as file:
-        file.write(json.dumps(ntfyConfig))
-
-def send_ntfy_messages(messages):
-    for msg in messages:
-        if not args.ntfyoff and "ntfy_server" in ntfyConfig and "ntfy_topic" in ntfyConfig:
-            url = f"{ntfyConfig['ntfy_server'].rstrip('/')}/{ntfyConfig['ntfy_topic']}"
-            try:
-                requests.post(url, data=msg.encode('utf-8'))
-            except Exception as e:
-                print(f"Failed to send ntfy notification: {e}")
-
-def is_ntfy_active():
-    '''A function to check if ntfy is active, i.e. if the ntfy config is present and not disabled'''
-    return not args.ntfyoff and "ntfy_server" in ntfyConfig and "ntfy_topic" in ntfyConfig
 
 def is_telegram_active():
     '''A function to check if telegram is active, i.e. if the api credentials are present
@@ -404,7 +349,7 @@ def in_between(now, start, end):
     if start < end:
         return start <= now < end
     elif start == end:
-        return True
+	    return True
     else: # over midnight e.g., 23:30-04:15
         return start <= now or now < end
 
@@ -414,7 +359,6 @@ if __name__ == '__main__':
 
     load_queries()
     load_api_credentials()
-    load_ntfy_config()
 
     if args.list:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " printing current status...")
@@ -437,12 +381,6 @@ if __name__ == '__main__':
 
     if args.pauseHour is None:
         args.pauseHour="0"
-
-    # NTFY setup (save config if new args passed)
-    if args.ntfy_server is not None and args.ntfy_topic is not None:
-        ntfyConfig["ntfy_server"] = args.ntfy_server
-        ntfyConfig["ntfy_topic"] = args.ntfy_topic
-        save_ntfy_config()
 
     # Telegram setup
 
@@ -470,3 +408,4 @@ if __name__ == '__main__':
                 print(str(args.delay) + " seconds to next poll.")
                 save_queries()
             t.sleep(int(args.delay))
+
