@@ -151,7 +151,7 @@ def refresh(notify):
     except requests.exceptions.HTTPError:
         print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " ***HTTP error***")
     except Exception as e:
-        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " " + e)  
+        print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " " + e)
 
 
 def delete(toDelete):
@@ -241,38 +241,61 @@ def run_query(url, name, notify, minPrice, maxPrice):
     page = requests.get(url, headers=headers)
     soup = BeautifulSoup(page.text, 'html.parser')
 
-    product_list_items = soup.find_all('article', class_=re.compile(r'index-module_card'))
+    script_tag = soup.find('script', id='__NEXT_DATA__')
+    if not script_tag:
+        print("Error: Could not find JSON data on page (Next.js data not found).")
+        return
+
+    json_data = json.loads(script_tag.string)
+
+    try:
+        items_list = json_data['props']['pageProps']['initialState']['items']['list']
+    except KeyError:
+        items_list = []
+
     msg = []
 
-    for product in product_list_items:
-        title = product.find('h3').string
-        try:
-            price=product.find('p',class_=re.compile(r'index-module_price')).contents[0]
-            # check if the span tag exists
-            price_soup = BeautifulSoup(price, 'html.parser')
-            if type(price_soup) == Tag:
-                continue
-            #at the moment (20.5.2021) the price is under the 'p' tag with 'span' inside if shipping available
-            price = int(price.replace('.','')[:-2])
-        except:
-            price = "Unknown price"
-        link = product.find('a').get('href')
+    for item_wrapper in items_list:
+        product = item_wrapper.get('item')
 
-        sold = product.find('span',re.compile(r'index-module_soldBadge'))
+        if not product:
+            continue
+
+        try:
+            item_key = product.get('urn')
+            if not item_key: continue
+
+            title = product.get('subject', 'No Title')
+            link = product.get('urls', {}).get('default', '')
+            location = product.get('geo', {}).get('town', {}).get('value', 'Unknown location')
+
+            # Price extraction
+            raw_price = None
+            price = "Unknown price"
+            features = product.get('features', {})
+            price_feature = features.get('/price')
+            if price_feature and 'values' in price_feature:
+                raw_price = price_feature['values'][0].get('key')
+
+            if raw_price:
+                try:
+                    price = int(raw_price)
+                except ValueError:
+                    pass
+
+            is_sold = product.get('sold', False)
+
+        except Exception as e:
+            continue
 
         # check if the product has already been sold
-        if sold != None:
+        if is_sold:
             # if the product has previously been saved remove it from the file
             if queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):
                 del queries[name][url][minPrice][maxPrice][link]
                 products_deleted = True
             continue
 
-        try:
-            location = product.find('span',class_=re.compile(r'index-module_location')).contents[0].string
-        except:
-            print(datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + " Unknown location for item %s" % (title))
-            location = "Unknown location"
         if minPrice == "null" or price == "Unknown price" or price>=int(minPrice):
             if maxPrice == "null" or price == "Unknown price" or price<=int(maxPrice):
                 if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
@@ -306,9 +329,6 @@ def run_query(url, name, notify, minPrice, maxPrice):
         # if at least one search was deleted, update the search file
         if products_deleted:
             save_queries()
-
-    # print("queries file saved: ", queries)
-
 
 def save_queries():
     '''A function to save the queries
@@ -384,7 +404,7 @@ def in_between(now, start, end):
     if start < end:
         return start <= now < end
     elif start == end:
-	    return True
+        return True
     else: # over midnight e.g., 23:30-04:15
         return start <= now or now < end
 
