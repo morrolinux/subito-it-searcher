@@ -267,7 +267,7 @@ def run_query(url, name, notify, minPrice, maxPrice):
 
             title = product.get('subject', 'No Title')
             link = product.get('urls', {}).get('default', '')
-            location = product.get('geo', {}).get('town', {}).get('value', 'Unknown location')
+            location = product.get('geo', {}).get('town', {}).get('value', 'Unknown town') + " (" + product.get('geo', {}).get('city', {}).get('shortName', 'Unknown province') + ")" 
 
             # Price extraction
             raw_price = None
@@ -282,6 +282,19 @@ def run_query(url, name, notify, minPrice, maxPrice):
                     price = int(raw_price)
                 except ValueError:
                     pass
+
+            # Shipping extraction
+            shipping = None
+            features = product.get('features', {})
+            shipping_feature = features.get('/item_shippable')
+            raw_shipping = shipping_feature['values'][0].get('value')
+
+            if raw_shipping:
+                try:
+                    shipping = "(Shipping available)"
+                except ValueError:
+                    pass
+
 
             is_sold = product.get('sold', False)
 
@@ -301,8 +314,8 @@ def run_query(url, name, notify, minPrice, maxPrice):
                 if not queries.get(name).get(url).get(minPrice).get(maxPrice).get(link):   # found a new element
                     tmp = (
                         datetime.now().strftime("%Y-%m-%d, %H:%M:%S") + "\n"
-                        + str(price) + "\n"
-                        + title + "\n"
+                        + "*" + title + "*" + "\n"
+                        + "€ " + str(price) + " " + shipping + "\n"
                         + location + "\n"
                         + link + '\n'
                     )
@@ -382,7 +395,7 @@ def send_telegram_messages(messages):
     >>> send_telegram_messages(["message1", "message2"])
     '''
     for msg in messages:
-        request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&text=" + msg
+        request_url = "https://api.telegram.org/bot" + apiCredentials["token"] + "/sendMessage?chat_id=" + apiCredentials["chatid"] + "&parse_mode=markdown" + "&text=" + msg
         requests.get(request_url)
 
 def in_between(now, start, end):
