@@ -287,14 +287,12 @@ def run_query(url, name, notify, minPrice, maxPrice):
             shipping = None
             features = product.get('features', {})
             shipping_feature = features.get('/item_shippable')
-            raw_shipping = shipping_feature['values'][0].get('value')
+            raw_shipping = shipping_feature['values'][0].get('key')
 
-            if raw_shipping:
-                try:
-                    shipping = "(Shipping available)"
-                except ValueError:
-                    pass
-
+            if raw_shipping == str(1):
+                shipping = "(Shipping available)"
+            else:
+                shipping = ""
 
             is_sold = product.get('sold', False)
 
